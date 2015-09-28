@@ -117,7 +117,20 @@ var array_equal = function (a1, a2) {
         }           
     }       
     return true;
-};  
+};
+
+  // Traverses a possibly nested array a and applies fun to all "leaf nodes" / values that are not arrays.
+var nested_array_apply = function(a, fun) {
+  if(Array.isArray(a)) {
+    var result = [];
+    for(var i = 0; i < a.length; i++) {
+      result[i] = nested_array_apply(a[i], fun);
+    }
+    return result;
+  } else {
+    return fun(a);
+  }
+};
 
 // Normal random number generator
 // Adapted from https://github.com/jstat/jstat/blob/master/src/special.js
@@ -140,6 +153,19 @@ var rnorm = function(mean, sd) {
 var get_option = function(option_name, options, defaul_value) {
   options = options || {};
   return options.hasOwnProperty(option_name) ? options[option_name] : defaul_value;
+};
+
+// Version of get_option where the result should be a possibly mulidimensional array
+// and where the default can be overridden either by a scalar or by an array.
+var get_multidim_option = function(option_name, options, dim, defaul_value) {
+  var value = get_option(option_name, options, defaul_value);
+   if(! Array.isArray(value)) {
+     value = create_array(dim, value);
+   } 
+   if(! array_equal( array_dim(value), dim)) {
+     throw "The option " + option_name + " is of dimension [" + array_dim(value) + "] but should be [" + dim + "].";
+  }
+   return value;
 };
 
 // Get a value in a nested object using an array to define the path. For example:
@@ -241,6 +267,19 @@ var complete_params  = function(params_to_complete, param_init) {
   return params;
 };
 
+// TODO, gör den här vad jag vill att den ska göra?
+var populate_param_object = function(params, value_fun) {
+  var property = {};
+  for (var param_name in params) { if (!params.hasOwnProperty(param_name)) continue;
+    if( array_equal(param.dim, [1]) ) {
+      property[param_name] = value_fun(params, param_name);
+    } else { 
+      property[param_name] = create_array(param.dim, value_fun(params, param_name));
+    }
+  }
+  return property;
+};
+
 // Checks a model definition and throws informative errors
 // when things seem off.
 var check_model = function(model) {
@@ -248,7 +287,7 @@ var check_model = function(model) {
   // A model is an object that contain the following obligatory objects:
   // "posterior": A function that returns the non-normalized log posterior
   //   density. The fist argument is an object with parameter values like
-  //   {"mu": 2.3, "sigma": 1.2}. The second argument will be an (optional)
+  //   {"mu": 2.3, "sigma": 1.2}. The second argument is an (optional)
   //   data object.
   // "parameters": An object with parameter definitions. 
   // In addition, the model can include the following optional objects:
@@ -257,11 +296,62 @@ var check_model = function(model) {
   // "options": An object with options for the sampling algorithm.
 };
 
+
+/////////// The sampler //////////
+/*
+var amwg_plus = function(parameter_definitions, posterior, data, options) {
+  var params = deep_clone(parameter_definitions);
+  var batch_size = get_option("batch_size", options, 50);
+  var min_adaptation = get_option("min_adaptation", options, 0.01);
+  var target_accept_rate = get_option("target_accept_rate", options, 0.44);
+  
+  
+  
+  
+  
+  var default_prop_log_scale = 0.0;
+  var prop_log_scale = get_option("prop_log_scale", options, default_prop_log_scale);
+  for (var param_name in params) { if (!params.hasOwnProperty(param_name)) continue;
+    var param = params[param_name];
+    if(is_number(prop_log_scale)) {
+      param.prop_log_scale
+    }
+    param.prop_log_scale = get_option("prop_log_scale", choosen_prop_log_scale, 0);
+        
+  };
+  
+  
+  ///// TODO funkar inte. smartare sätta att skicka in optdefault_prop_log_scaleions? Generellt sätt..?
+  if(is_number(choosen_prop_log_scale)) {
+    var prop_log_scale =  populate_param_object(params, function() { return choosen_prop_log_scale; } );
+  } else {
+    var prop_log_scale =  populate_param_object(params, function(params, param_name) {
+      if(choosen_prop_log_scale.hasOwnProperty(param_name)) {
+        return choosen_prop_log_scale[param_name];
+      } else {
+        return default_prop_log_scale;
+      }
+    });
+  }
+    
+    param.acceptance_count = 
+  }
+
+  
+  var is_adapting        = get_option("is_adapting", options, true);
+  
+  var acceptance_count = 0;
+  var batch_count = 0;
+  var iterations_since_adaption = 0;
+};
+
+*/
+
 var sampler_interface = function() {
   return {
     // Returns the next draw from the sampler for the parameter with name param which has 
     // support between lower and upper. This method should not change state. 
-    next: function(param, lower, upper, state, posterior) { throw "Every sampler need to implement next"; },
+    next: function() { throw "Every sampler need to implement next"; },
     // Starts and stops the adaptation.
     start_adaptation: function() { /* Optional, some samples might not be adaptive. */ },
     stop_adaptation: function()  { /* Again Optional */ },
@@ -273,8 +363,15 @@ var sampler_interface = function() {
 
 // This returns an object that implements the metropolis step in
 // the Adaptive Metropolis-Within-Gibbs algorithm in "Examples of Adaptive MCMC"
-// by Roberts and Rosenthal (2008)
-var batch_adaptation_metropolis_sampler = function(param, lower, upper, generate_proposal, options) {
+// by Roberts and Rosenthal (2008).
+// param: The name or index of the parameter.
+// lower, upper: The bounds of the parameter.
+// state: A reference to the state object that this sampler will affect.
+// posterior: A function returning the log likelihood that takes no arguments but
+//            that should depend on state.
+// generate_proposal: A function(param_state, prop_log_sd) generating a proposal.
+// options: An optional object containing options to the sampler. 
+var batch_adaptation_metropolis_sampler = function(param, lower, upper, state, posterior, generate_proposal, options) {
   var sampler = sampler_interface();
   var prop_log_scale     = get_option("prop_log_scale", options, 0);
   var batch_size         = get_option("batch_size", options, 50);
@@ -286,28 +383,27 @@ var batch_adaptation_metropolis_sampler = function(param, lower, upper, generate
   var batch_count = 0;
   var iterations_since_adaption = 0;
   
-  sampler.next = function(state, posterior) {
-    var param_state = get_nested(state, param)
+  sampler.next = function() {
+    var param_state = state[param];
+    //var param_state = get_nested(state, param)
     
     var param_proposal = generate_proposal(param_state, prop_log_scale);
     if(param_proposal < lower || param_proposal > upper) {
       // Outside of limits of the parameter, reject the proposal 
-      // and stay at the current state
-      var next_param_state = param_state;
+      // and stay at the current state.
     } else { // make a Metropolis step
-      var curr_log_dens = posterior(state);
-      set_nested(state, param, param_proposal);
-      var prop_log_dens = posterior(state);
-      // Here we revert state back so that this method leaves it untouched.
-      // It would be safer to first make a copy of state, but that feels costly...
-      set_nested(state, param, param_state);
+      var curr_log_dens = posterior();
       
+      state[param] = param_proposal;
+      //set_nested(state, param, param_proposal);
+      var prop_log_dens = posterior();
       var accept_prob = Math.exp(prop_log_dens - curr_log_dens)
       if(accept_prob > Math.random()) {
-        var next_param_state = param_proposal;
+        // We do nothing as the state of param has already been changed to the proposal
         if(is_adapting) acceptance_count++ ;
       } else {
-        var next_param_state = param_state;
+        // revert state back to the old state of param
+        state[param] = param_state;
       }
     }
     if(is_adapting) {
@@ -324,7 +420,7 @@ var batch_adaptation_metropolis_sampler = function(param, lower, upper, generate
         iterations_since_adaption = 0;
       }
     }
-    return next_param_state;
+    return state[param];
   };
   
   sampler.start_adaptation = function() {
@@ -348,33 +444,89 @@ var batch_adaptation_metropolis_sampler = function(param, lower, upper, generate
 };
 
 // Returns an instance of batch_adaptation_metropolis_sampler that takes
-// Normally distributed steps
-var real_adaptive_metropolis_sampler = function(param, lower, upper, options) {
+// normally distributed steps
+var real_adaptive_metropolis_sampler = function(param, lower, upper, state, posterior, options) {
   var normal_proposal = function(param_state, prop_log_sd) {
     return rnorm(param_state , Math.exp(prop_log_sd));
   };
-  return batch_adaptation_metropolis_sampler(param, lower, upper, normal_proposal, options);
+  return batch_adaptation_metropolis_sampler(param, lower, upper, state, posterior, normal_proposal, options);
 }
 
 // Returns an instance of batch_adaptation_metropolis_sampler that takes
-// discretized Normally distributed steps
-var int_adaptive_metropolis_sampler = function(param, lower, upper, options) {
+// discretized normally distributed steps
+var int_adaptive_metropolis_sampler = function(param, lower, upper, state, posterior, options) {
   var discrete_normal_proposal = function(param_state, prop_log_sd) {
     return Math.round(rnorm(param_state , Math.exp(prop_log_sd)));
   };
-  return batch_adaptation_metropolis_sampler(param, lower, upper, discrete_normal_proposal, options);
+  return batch_adaptation_metropolis_sampler(param, lower, upper, state, posterior, discrete_normal_proposal, options);
 }
 
-var real_multivariate_adaptive_metropolis_sampler = function(options) {
+var multivariate_batch_adaptation_metropolis_sampler = function(param, lower, upper, dim, state, posterior, generate_proposal, options) {
   var sampler = sampler_interface();
   
+  var prop_log_scale     = get_multidim_option("prop_log_scale", options, dim, 0);
+  var batch_size         = get_multidim_option("batch_size", options, dim, 50);
+  var min_adaptation     = get_multidim_option("min_adaptation", options, dim, 0.01);
+  var target_accept_rate = get_multidim_option("target_accept_rate", options, dim, 0.44);
+  var is_adapting        = get_multidim_option("is_adapting", options, dim, true);
+
+  var create_subsamplers = 
+    function(dim, state, prop_log_scale, batch_size, min_adaptation, target_accept_rate, is_adapting) {
+    var subsamplers = [];
+    if(dim.length === 1) {
+      for(var i = 0; i < dim[0]; i++) {
+        var options = {prop_log_scale: prop_log_scale[i], batch_size: batch_size[i],
+          min_adaptation: min_adaptation[i], target_accept_rate: target_accept_rate[i],
+          is_adapting: is_adapting[i]};
+        subsamplers[i] = batch_adaptation_metropolis_sampler(i, lower, upper,
+          state, posterior, generate_proposal, options);
+      }
+    } else {
+      for(var i = 0; i < dim[0]; i++) {
+        subsamplers[i] = create_subsamplers(dim.slice(1), state[i], prop_log_scale[i], 
+          batch_size[i], min_adaptation[i], target_accept_rate[i], is_adapting[i]);
+      }
+    }
+    return subsamplers;
+  };
+  
+  var subsamplers = create_subsamplers(dim, state[param], prop_log_scale, batch_size, 
+                                       min_adaptation, target_accept_rate, is_adapting);
+                                    
+  sampler.next = function() {
+    return nested_array_apply(subsamplers, function(subsampler) {return subsampler.next(); });
+  };
+  
+  sampler.start_adaptation = function() {
+    nested_array_apply(subsamplers, function(subsampler) {subsampler.start_adaptation(); });
+  };
+  
+  sampler.stop_adaptation = function() {
+    nested_array_apply(subsamplers, function(subsampler) {subsampler.stop_adaptation(); });
+  };
+  
+  sampler.info = function() {
+    return nested_array_apply(subsamplers, function(subsampler) {
+      return subsampler.info(); 
+    });
+  };
+  
+  return sampler;
+};
+
+var real_multivariate_adaptive_metropolis_sampler = function(param, lower, upper, dim, state, posterior, options) {
   var normal_proposal = function(param_state, prop_log_sd) {
     return rnorm(param_state , Math.exp(prop_log_sd));
   };
-  return batch_adaptation_metropolis_sampler(normal_proposal, options);
-}
+  return multivariate_batch_adaptation_metropolis_sampler(param, lower, upper, dim, state, posterior, normal_proposal, options);
+};
 
-
+var int_multivariate_adaptive_metropolis_sampler = function(param, lower, upper, dim, state, posterior, options) {
+  var discrete_normal_proposal = function(param_state, prop_log_sd) {
+    return Math.round(rnorm(param_state , Math.exp(prop_log_sd)));
+  };
+  return multivariate_batch_adaptation_metropolis_sampler(param, lower, upper, dim, state, posterior, discrete_normal_proposal, options);
+};
 
 
 /*

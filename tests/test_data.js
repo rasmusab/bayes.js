@@ -128,6 +128,18 @@ var norm_dens = function(par) {
   return norm_log_pdf(par.x, 10, 5);
 };
 
+var multivar_norm_dens = function(par) {
+  x1 = par.x[0][0];
+  x2 = par.x[0][1];
+  x3 = par.x[1][0];
+  x4 = par.x[1][1];
+  var log_post = norm_log_pdf(x1, 1000, 50) + 
+              norm_log_pdf(x2, 10, 5) + 
+              norm_log_pdf(x3, 0.1, 0.5) + 
+              norm_log_pdf(x4, 0.001, 0.05);
+  return log_post;
+};
+
 var poisson_dens = function(par) {
   return poisson_log_pdf(par.x, 10);
 };
