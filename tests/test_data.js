@@ -143,3 +143,28 @@ var multivar_norm_dens = function(par) {
 var poisson_dens = function(par) {
   return poisson_log_pdf(par.x, 10);
 };
+
+var multivar_poisson_dens = function(par) {
+  x1 = par.x[0][0];
+  x2 = par.x[0][1];
+  x3 = par.x[1][0];
+  x4 = par.x[1][1];
+  var log_post = poisson_log_pdf(x1, 0.1) + 
+              poisson_log_pdf(x2, 10) + 
+              poisson_log_pdf(x3, 1000) + 
+              poisson_log_pdf(x4, 100000);
+  return log_post;
+};
+
+var bern_dens = function(par) {
+  return Math.log(par.x * 0.85 + (1 - par.x) * 0.15);
+};
+
+var multi_bern_dens = function(par) {
+  x1 = par.x[0][0];
+  x2 = par.x[0][1];
+  x3 = par.x[1][0];
+  x4 = par.x[1][1];
+  return Math.log(x1 * x2 * 0.85 + (1 - x1*x2) * 0.15) + 
+    Math.log(x3*x4 * 0.75 + (1 - x3*x4) * 0.25);
+};
