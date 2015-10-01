@@ -160,13 +160,12 @@ var binom_log_pdf = function(x, n, p) {
   return combinationln(n, x) + x * log(p) + (n - x) * log(1 - p);
 };
 
-var nbinom = function(k, r, p) {
-    return k !== k | 0
-      ? false
-      : k < 0
-        ? 0
-        : jStat.combination(k + r - 1, r - 1) * Math.pow(1 - p, k) * Math.pow(p, r);
+var nbinom = function(x, size, prob) {
+  if(x < 0) {
+    return -Infinity;
   }
+  return combinationln(x + size - 1, size - 1) + x * log(1 - prob) + size * log(prob);
+};
 
 
 var poisson_log_pdf = function(x, lambda) {
