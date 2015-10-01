@@ -1,3 +1,5 @@
+"use strict";
+
 ////////// Helper Functions //////////
 
 // Returns a random number between min and max;
@@ -160,7 +162,7 @@ var nested_array_random_apply = function(a, fun) {
   if(Array.isArray(a)) {
     var len = a.length;
     var i;
-    var array_is = new Array(len);
+    var array_is = [];
     for(i = 0; i < len; i++) {
       array_is[i] = i;
     }
@@ -273,7 +275,7 @@ var Stepper = function(parameters, state, posterior) {
 };
 
 Stepper.prototype.step = function() {
-  throw "Every Stepper need to implement next";
+  throw "Every Stepper need to implement step()";
 };
 
 Stepper.prototype.start_adaptation = function() {
@@ -289,7 +291,7 @@ Stepper.prototype.info = function() {
   return {};
 };
 
-////////// UnivariateBatchAdaptationMetropolisStepper ///////////
+////////// OnedimMetropolisStepper ///////////
 
 // Constructor for an object that implements the metropolis step in
 // the Adaptive Metropolis-Within-Gibbs algorithm in "Examples of Adaptive MCMC"
@@ -299,17 +301,17 @@ Stepper.prototype.info = function() {
 // posterior: A function returning the log likelihood that takes no arguments but
 //            that should depend on state.
 // options: An optional object containing options to the sampler. 
-var UnivariateBatchAdaptationMetropolisStepper = function(parameters, state, posterior, options, generate_proposal) {
+var OnedimMetropolisStepper = function(parameters, state, posterior, options, generate_proposal) {
   Stepper.call(this, parameters, state, posterior);
   
-  param_names = Object.keys(this.parameters);
+  var param_names = Object.keys(this.parameters);
   if(param_names.length  == 1) {
     this.param_name = param_names[0];
     var parameter = this.parameters[this.param_name];
     this.lower = parameter.lower;
     this.upper = parameter.upper;
   } else {
-    throw "UnivariateBatchAdaptationMetropolisStepper can't handle more than one parameter.";
+    throw "OnedimMetropolisStepper can't handle more than one parameter.";
   }
   
   this.prop_log_scale     = get_option("prop_log_scale", options, 0);
@@ -325,14 +327,10 @@ var UnivariateBatchAdaptationMetropolisStepper = function(parameters, state, pos
   this.iterations_since_adaption = 0;  
 };
 
-UnivariateBatchAdaptationMetropolisStepper.prototype = Object.create(Stepper.prototype); 
-UnivariateBatchAdaptationMetropolisStepper.prototype.constructor = UnivariateBatchAdaptationMetropolisStepper;
+OnedimMetropolisStepper.prototype = Object.create(Stepper.prototype); 
+OnedimMetropolisStepper.prototype.constructor = OnedimMetropolisStepper;
 
-UnivariateBatchAdaptationMetropolisStepper.prototype.generate_proposal = function(param_state, prop_log_scale) {
-  throw "generate_proposal needs to be implemented by instances of UnivariateBatchAdaptationMetropolisStepper";
-};
-
-UnivariateBatchAdaptationMetropolisStepper.prototype.step = function() {
+OnedimMetropolisStepper.prototype.step = function() {
     var param_state = this.state[this.param_name];
     var param_proposal = this.generate_proposal(param_state, this.prop_log_scale);
     if(param_proposal < this.lower || param_proposal > this.upper) {
@@ -368,15 +366,15 @@ UnivariateBatchAdaptationMetropolisStepper.prototype.step = function() {
     return this.state[this.param_name];
 };
 
-UnivariateBatchAdaptationMetropolisStepper.prototype.start_adaptation = function() {
+OnedimMetropolisStepper.prototype.start_adaptation = function() {
   this.is_adapting = true;
 };
 
-UnivariateBatchAdaptationMetropolisStepper.prototype.stop_adaptation = function() {
+OnedimMetropolisStepper.prototype.stop_adaptation = function() {
   this.is_adapting = false;
 };
 
-UnivariateBatchAdaptationMetropolisStepper.prototype.info_adaptation = function() {
+OnedimMetropolisStepper.prototype.info = function() {
   return {
     prop_log_scale: this.prop_log_scale,
     is_adapting: this.is_adapting,
@@ -387,39 +385,39 @@ UnivariateBatchAdaptationMetropolisStepper.prototype.info_adaptation = function(
 };
 
 
-////////// RealBatchAdaptationMetropolisStepper ///////////
+////////// RealMetropolisStepper ///////////
 
 var normal_proposal = function(param_state, prop_log_scale) {
   return rnorm(param_state , Math.exp(prop_log_scale));
-}
-
-var RealBatchAdaptationMetropolisStepper = function(parameters, state, posterior, options) {
-  UnivariateBatchAdaptationMetropolisStepper.call(this, parameters, state, posterior, options, normal_proposal);
 };
 
-RealBatchAdaptationMetropolisStepper.prototype = Object.create(UnivariateBatchAdaptationMetropolisStepper.prototype); 
-RealBatchAdaptationMetropolisStepper.prototype.constructor = RealBatchAdaptationMetropolisStepper;
+var RealMetropolisStepper = function(parameters, state, posterior, options) {
+  OnedimMetropolisStepper.call(this, parameters, state, posterior, options, normal_proposal);
+};
 
-////////// IntBatchAdaptationMetropolisStepper ///////////
+RealMetropolisStepper.prototype = Object.create(OnedimMetropolisStepper.prototype); 
+RealMetropolisStepper.prototype.constructor = RealMetropolisStepper;
+
+////////// IntMetropolisStepper ///////////
 
 var discrete_normal_proposal = function(param_state, prop_log_scale) {
   return Math.round(rnorm(param_state , Math.exp(prop_log_scale)));
-}
-
-var IntBatchAdaptationMetropolisStepper = function(parameters, state, posterior, options) {
-  UnivariateBatchAdaptationMetropolisStepper.call(this, parameters, state, posterior, options, discrete_normal_proposal);
 };
 
-IntBatchAdaptationMetropolisStepper.prototype = Object.create(UnivariateBatchAdaptationMetropolisStepper.prototype); 
-IntBatchAdaptationMetropolisStepper.prototype.constructor = IntBatchAdaptationMetropolisStepper;
+var IntMetropolisStepper = function(parameters, state, posterior, options) {
+  OnedimMetropolisStepper.call(this, parameters, state, posterior, options, discrete_normal_proposal);
+};
+
+IntMetropolisStepper.prototype = Object.create(OnedimMetropolisStepper.prototype); 
+IntMetropolisStepper.prototype.constructor = IntMetropolisStepper;
 
 
-////////// MultivariateBatchAdaptationMetropolisStepper //////////
+////////// MultidimAdaptiveMetropolisStepper //////////
 
-var MultivariateBatchAdaptationMetropolisStepper = function(parameters, state, posterior, options, SubSampler) {
+var MultidimComponentMetropolisStepper = function(parameters, state, posterior, options, SubSampler) {
   Stepper.call(this, parameters, state, posterior);
   
-  param_names = Object.keys(this.parameters);
+  var param_names = Object.keys(this.parameters);
   if(param_names.length  == 1) {
     this.param_name = param_names[0];
     var parameter = this.parameters[this.param_name];
@@ -427,7 +425,7 @@ var MultivariateBatchAdaptationMetropolisStepper = function(parameters, state, p
     this.upper = parameter.upper;
     this.dim = parameter.dim;
   } else {
-    throw "MultivariateBatchAdaptationMetropolisStepper can't handle more than one parameter.";
+    throw "MultidimComponentMetropolisStepper can't handle more than one parameter.";
   }
   
   this.prop_log_scale     = get_multidim_option("prop_log_scale", options, this.dim, 0);
@@ -463,99 +461,156 @@ var MultivariateBatchAdaptationMetropolisStepper = function(parameters, state, p
   
 };
 
-MultivariateBatchAdaptationMetropolisStepper.prototype = Object.create(Stepper.prototype); 
-UnivariateBatchAdaptationMetropolisStepper.prototype.constructor = UnivariateBatchAdaptationMetropolisStepper;
+MultidimComponentMetropolisStepper.prototype = Object.create(Stepper.prototype); 
+MultidimComponentMetropolisStepper.prototype.constructor = MultidimComponentMetropolisStepper;
 
-MultivariateBatchAdaptationMetropolisStepper.prototype.step = function() {
+MultidimComponentMetropolisStepper.prototype.step = function() {
   // Go through the subsamplers in a random order and call step() on them.
   return nested_array_random_apply(this.subsamplers, function(subsampler) {return subsampler.step(); });
 };
 
-MultivariateBatchAdaptationMetropolisStepper.prototype.start_adaptation = function() {
+MultidimComponentMetropolisStepper.prototype.start_adaptation = function() {
   nested_array_apply(this.subsamplers, function(subsampler) {subsampler.start_adaptation(); });
 };
 
-MultivariateBatchAdaptationMetropolisStepper.prototype.stop_adaptation = function() {
+MultidimComponentMetropolisStepper.prototype.stop_adaptation = function() {
   nested_array_apply(this.subsamplers, function(subsampler) {subsampler.stop_adaptation(); });
 };
 
-MultivariateBatchAdaptationMetropolisStepper.prototype.info = function() {
+MultidimComponentMetropolisStepper.prototype.info = function() {
   return nested_array_apply(this.subsamplers, function(subsampler) {
     return subsampler.info(); 
   });
 };
 
-////////// MultiRealBatchAdaptationMetropolisStepper //////////
+////////// MultiRealComponentMetropolisStepper //////////
 
-var MultiRealBatchAdaptationMetropolisStepper = function(parameters, state, posterior, options) {
-  MultivariateBatchAdaptationMetropolisStepper.call(this, parameters, state, posterior, options, RealBatchAdaptationMetropolisStepper);
+var MultiRealComponentMetropolisStepper = function(parameters, state, posterior, options) {
+  MultidimComponentMetropolisStepper.call(this, parameters, state, posterior, options, RealMetropolisStepper);
 };
 
-MultiRealBatchAdaptationMetropolisStepper.prototype = Object.create(MultivariateBatchAdaptationMetropolisStepper.prototype); 
-MultiRealBatchAdaptationMetropolisStepper.prototype.constructor = MultiRealBatchAdaptationMetropolisStepper;
+MultiRealComponentMetropolisStepper.prototype = Object.create(MultidimComponentMetropolisStepper.prototype); 
+MultiRealComponentMetropolisStepper.prototype.constructor = MultiRealComponentMetropolisStepper;
 
-////////// MultiIntBatchAdaptationMetropolisStepper //////////
+////////// MultiIntComponentMetropolisStepper //////////
 
-var MultiIntBatchAdaptationMetropolisStepper = function(parameters, state, posterior, options) {
-  MultivariateBatchAdaptationMetropolisStepper.call(this, parameters, state, posterior, options, RealBatchAdaptationMetropolisStepper);
+var MultiIntComponentMetropolisStepper = function(parameters, state, posterior, options) {
+  MultidimComponentMetropolisStepper.call(this, parameters, state, posterior, options, IntMetropolisStepper);
 };
 
-MultiIntBatchAdaptationMetropolisStepper.prototype = Object.create(MultivariateBatchAdaptationMetropolisStepper.prototype); 
-MultiIntBatchAdaptationMetropolisStepper.prototype.constructor = MultiIntBatchAdaptationMetropolisStepper;
+MultiIntComponentMetropolisStepper.prototype = Object.create(MultidimComponentMetropolisStepper.prototype); 
+MultiIntComponentMetropolisStepper.prototype.constructor = MultiIntComponentMetropolisStepper;
 
-/*
+////////// BinaryStepper //////////
 
-var binary_exact_sampler = function(param, state, posterior) {
-  var sampler = sampler_interface();
+var BinaryStepper = function(parameters, state, posterior, options) {
+  Stepper.call(this, parameters, state, posterior);
+  var param_names = Object.keys(this.parameters);
+  if(param_names.length  == 1) {
+    this.param_name = param_names[0];
+  } else {
+    throw "BinaryStepper can't handle more than one parameter.";
+  }
+};
+
+BinaryStepper.prototype = Object.create(Stepper.prototype); 
+BinaryStepper.prototype.constructor = BinaryStepper;
+
+BinaryStepper.prototype.step = function() {
+  this.state[this.param_name] = 0;
+  var zero_log_dens = this.posterior();
+  this.state[this.param_name] = 1;
+  var one_log_dens = this.posterior();
+  var max_log_dens = Math.max(zero_log_dens, one_log_dens);
+  zero_log_dens -= max_log_dens;
+  one_log_dens -= max_log_dens;
+  var zero_prob = Math.exp(zero_log_dens - Math.log( Math.exp(zero_log_dens) + Math.exp(one_log_dens) ) );
+  if(Math.random() < zero_prob) {
+    this.state[this.param_name] = 0;
+    return 0;
+  } // else keep the param at 1 .
+  return 1;
+};
+
+////////// BinaryComponentStepper //////////
+
+var BinaryComponentStepper = function(parameters, state, posterior, options) {
+  Stepper.call(this, parameters, state, posterior);
   
-  sampler.next = function() {
-    state[param] = 0;
-    var zero_log_dens = posterior();
-    state[param] = 1;
-    var one_log_dens = posterior();
-    one_prop <- one_dens / (zero_dens + one_dens)
-      
-      state[param] = param_proposal;
-      //set_nested(state, param, param_proposal);
-      var prop_log_dens = posterior();
-      var accept_prob = Math.exp(prop_log_dens - curr_log_dens)
-      if(accept_prob > Math.random()) {
-        // We do nothing as the state of param has already been changed to the proposal
-        if(is_adapting) acceptance_count++ ;
-      } else {
-        // revert state back to the old state of param
-        state[param] = param_state;
+  var param_names = Object.keys(this.parameters);
+  if(param_names.length  == 1) {
+    this.param_name = param_names[0];
+    var parameter = this.parameters[this.param_name];
+    this.dim = parameter.dim;
+  } else {
+    throw "BinaryComponentStepper can't handle more than one parameter.";
+  }
+  
+  var create_subsamplers = 
+    function(dim, substate, posterior) {
+    var subsamplers = [];
+    if(dim.length === 1) {
+      for(var i = 0; i < dim[0]; i++) {
+          var subparameters = {};
+          subparameters[i] = parameter;
+        subsamplers[i] = new BinaryStepper(subparameters, substate, posterior);
+      }
+    } else {
+      for(var i = 0; i < dim[0]; i++) {
+        subsamplers[i] = create_subsamplers(dim.slice(1), substate[i], posterior);
       }
     }
-    if(is_adapting) {
-      iterations_since_adaption++;
-      if(iterations_since_adaption >= batch_size) { // then adapt
-        batch_count ++;
-        var log_sd_adjustment = Math.min(max_adaptation, 1 / Math.sqrt(batch_count));
-        if(acceptance_count / batch_size > target_accept_rate) {
-          prop_log_scale += log_sd_adjustment;
-        } else {
-          prop_log_scale -= log_sd_adjustment;
-        }
-        acceptance_count = 0;
-        iterations_since_adaption = 0;
-      }
-    }
-    return state[param];
+    return subsamplers;
   };
   
-  return sampler;
-}
+  this.subsamplers = create_subsamplers(this.dim, this.state[this.param_name], this.posterior);
+};
 
-*/
+BinaryComponentStepper.prototype = Object.create(Stepper.prototype); 
+BinaryComponentStepper.prototype.constructor = BinaryComponentStepper;
 
-// TODO binary samplers
+BinaryComponentStepper.prototype.step = function() {
+  // Go through the subsamplers in a random order and call step() on them.
+  return nested_array_random_apply(this.subsamplers, function(subsampler) {return subsampler.step(); });
+};
 
-// TODO Randomize gibbs order?
 
 
+/////////// Sampler Interface //////////
 
-/////////// The sampler //////////
+var Sampler = function(parameters, posterior, options) {
+  this.parameters = parameters;
+  this.posterior = posterior;
+  this.options = options;
+};
+
+Sampler.prototype.sample = function( ) {
+  throw "Every Sampler needs to implement sample()";
+};
+
+Sampler.prototype.monitor = function( ) {
+  // Optional, some steppers might not be adaptive. 
+};
+
+Sampler.prototype.thin = function() {
+};
+
+Sampler.prototype.info = function() {
+  // Returns an object with info about the state of the Sampler.
+  return {};
+};
+
+Sampler.prototype.start_adaptation = function() {
+  // Optional, some steppers might not be adaptive. */ 
+};
+
+Sampler.prototype.stop_adaptation = function() {
+  // Optional, some steppers might not be adaptive. */ 
+};
+
+////////////////////
+
+
 /*
 
 // TODO, gör den här vad jag vill att den ska göra?
