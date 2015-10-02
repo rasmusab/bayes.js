@@ -1,12 +1,16 @@
 "use strict";
 
-// TODO Change names and parameterization in order to match R.
 
-
+// A number of log probability density functions (PDF). Naming and parameterization
+// should match R's, except for that each fucnction starts with ld as in
+// "log density".
 // Most of the code below is directly taken from the great Jstat project
-// https://github.com/jstat/
+// (https://github.com/jstat/) which includes PDF for many common probaility
+// distributions. What I have done is only to convert these to log PDFs.
+
 /*
-Copyright (c) 2013 jStat
+Original work Copyright (c) 2013 jStat
+Modified work Copyright (c) 2012 Rasmus Bååth 
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -53,8 +57,7 @@ var combinationln = function(n, m){
   return factorialln(n) - factorialln(m) - factorialln(n - m);
 };
 
-// natural logarithm of beta function
-var betaln = function betaln(x, y) {
+var betaln = function(x, y) {
   return gammaln(x) + gammaln(y) - gammaln(x + y);
 };
 
@@ -64,28 +67,26 @@ var sqrt = Math.sqrt;
 var pi = Math.PI;
 
 ////////// Continous distributions //////////
-
-var beta_log_pdf = function(x, alpha, beta) {
+var ldbeta = function(x, shape1, shape2) {
   if (x > 1 || x < 0) {
       return -Infinity;
   }
-  if(alpha === 1 && beta === 1) {
+  if(shape1 === 1 && shape2 === 1) {
     return 0;
   } else {
-    return (alpha - 1) * log(x) + (beta - 1) * log(1 - x) - betaln(alpha, beta);  
+    return (shape1 - 1) * log(x) + (shape2 - 1) * log(1 - x) - betaln(shape1, shape2);  
   }
 };
 
-
-var cauchy_log_pdf = function(x, location, scale) {
+var ldcauchy = function(x, location, scale) {
   return log(scale) - log(pow(x - location, 2) + pow(scale, 2))  - log(pi);
 };
 
-var norm_log_pdf = function(x, mean, std) {
-    return -0.5 * log(2 * pi) -log(std) - pow(x - mean, 2) / (2 * std * std);
+var ldnorm = function(x, mean, sd) {
+    return -0.5 * log(2 * pi) -log(sd) - pow(x - mean, 2) / (2 * sd * sd);
 };
 
-var gamma_log_pdf = function(x, shape, scale) {
+var ldgamma = function(x, shape, scale) {
   if (x < 0) {
     return -Infinity;
   }
@@ -96,47 +97,44 @@ var gamma_log_pdf = function(x, shape, scale) {
   }
 };
 
-var invgamma_log_pdf = function(x, shape, scale) {
+var ldinvgamma = function(x, shape, scale) {
     if (x <= 0) {
       return -Infinity;
     }
     return -(shape + 1) * log(x) - scale / x - gammaln(shape) + shape * log(scale);
   };
 
-var lognormal_log_pdf =  function(x, mu, sigma) {
+var ldlnorm =  function(x, meanlog, sdlog) {
   if (x <= 0) {
     return -Infinity;
   }
-  return -log(x) - 0.5 * log(2 * pi) - log(sigma) - 
-          pow(log(x) - mu, 2) / (2 * sigma * sigma);
+  return -log(x) - 0.5 * log(2 * pi) - log(sdlog) - 
+          pow(log(x) - meanlog, 2) / (2 * sdlog * sdlog);
 };
 
-var pareto_log_pdf = function(x, scale, shape) {
+var ldpareto = function(x, scale, shape) {
   if (x < scale) {
     return -Infinity;
   }
   return log(shape) + shape * log(scale) - (shape + 1) * log(x);
 };
 
-var t_log_pdf  =  function(x, mu, sigma, nu) {
+var ldt  =  function(x, mu, sigma, nu) {
   nu = nu > 1e100 ? 1e100 : nu;
   return gammaln((nu + 1)/2) - gammaln(nu/2) - log(sqrt(pi * nu) * sigma) +
          log(pow(1 + (1/nu) * pow((x - mu)/sigma, 2), -(nu + 1)/2));
 };
 
-// This doesn't really give the same answers as the R version dweibull
+// This doesn't give the same answers as the R version dweibull,
 // for example, when x = 0.0
-var weibull_log_pdf = function(x, shape, scale) {
+var ldweibull = function(x, shape, scale) {
   if (x < 0)
     return -Infinity;
   return log(shape) - log(scale) + (shape - 1) * log((x / scale)) - pow(x / scale, shape);
 };
 
   
-
-
-
-var exp_log_pdf = function(x, rate) {
+var ldexp = function(x, rate) {
     return x < 0 ? -Infinity : log(rate) -rate * x;
 };
 
@@ -146,21 +144,21 @@ var unif_log_pdf = function(x, a, b) {
 
 ////////// Discrete distributions //////////
 
-var bern_log_pdf = function(x, p) {
-    return !(x === 0 || x === 1) ? -Infinity : log(x * p + (1 - x) * (1 - p));
+var ldbern = function(x, prob) {
+    return !(x === 0 || x === 1) ? -Infinity : log(x * prob + (1 - x) * (1 - prob));
 };
 
-var binom_log_pdf = function(x, n, p) {
-  if(x > n || x < 0) {
+var ldbinom = function(x, size, prob) {
+  if(x > size || x < 0) {
     return -Infinity;
   }
-  if(p === 0 || p === 1) {
-    return (n * p) === x ? 0 : -Infinity;
+  if(prob === 0 || prob === 1) {
+    return (size * prob) === x ? 0 : -Infinity;
   }
-  return combinationln(n, x) + x * log(p) + (n - x) * log(1 - p);
+  return combinationln(size, x) + x * log(prob) + (size - x) * log(1 - prob);
 };
 
-var nbinom = function(x, size, prob) {
+var ldnbinom = function(x, size, prob) {
   if(x < 0) {
     return -Infinity;
   }
@@ -168,7 +166,7 @@ var nbinom = function(x, size, prob) {
 };
 
 
-var poisson_log_pdf = function(x, lambda) {
+var ldpois = function(x, lambda) {
     return x < 0 ? -Infinity : log(lambda) * x - lambda - factorialln(x);
 };
 
