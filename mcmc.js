@@ -167,7 +167,7 @@ var nested_array_random_apply = function(a, fun) {
       array_is[i] = i;
     }
     shuffle_array(array_is);
-    var result = new Array(len);
+    var result = [];
     
     for(i = 0; i < len; i++) {
       var array_i = array_is[i];
@@ -268,6 +268,15 @@ var complete_params  = function(params_to_complete, param_init) {
 
 ////////// Stepper interface ///////////
 
+
+// parameters: An object with parameter definitions, for example:
+//             {x:{ type: real }}
+// state     : An object with containing the state of each parameter 
+//             as either a scalar or an array. For example:
+//            {sigma:5, beta: [1, 2.5]}
+// posterior : A function *taking no parameters* that returns the
+//             current log density. That is, the value of posterior()
+//             needs to change if the values in state changes.
 var Stepper = function(parameters, state, posterior) {
   this.parameters = parameters;
   this.state = state;
@@ -572,6 +581,83 @@ BinaryComponentStepper.prototype.constructor = BinaryComponentStepper;
 BinaryComponentStepper.prototype.step = function() {
   // Go through the subsamplers in a random order and call step() on them.
   return nested_array_random_apply(this.subsamplers, function(subsampler) {return subsampler.step(); });
+};
+
+////////// AmwgPlusStepper (Adaptive Metropolis With Gibbs +) //////////
+
+var AmwgPlusStepper = function(parameters, state, posterior, options) {
+  Stepper.call(this, parameters, state, posterior);
+  this.param_names = Object.keys(this.parameters);
+  this.subsamplers = [];
+  for(var i = 0; i < this.param_names.length; i++) {
+    var param = parameters[this.param_names[i]];
+    var SelectStepper;
+    switch (param.type) {
+      case "real":
+        if(array_equal(param.dim, [1])) {
+          SelectStepper = RealMetropolisStepper;
+        } else {
+          SelectStepper = MultiRealComponentMetropolisStepper;
+        }
+        break;
+      case "int":
+        if(array_equal(param.dim, [1])) {
+          SelectStepper = IntMetropolisStepper;
+        } else {
+          SelectStepper = MultiIntComponentMetropolisStepper;
+        }
+        break;
+      case "binary":
+        if(array_equal(param.dim, [1])) {
+          SelectStepper = BinaryStepper;
+        } else {
+          SelectStepper = BinaryComponentStepper;
+        }
+        break;
+      default:
+        throw "AmwgPlusStepper can't handle parameter " + this.param_names[i]  +" with type " + param.type;    
+    }
+    var param_object_wrap = {};
+    param_object_wrap[this.param_names[i]] = param;
+    var param_options = options && options.parameters && options.parameters[this.param_names[i]];
+    this.subsamplers[i] = new SelectStepper(param_object_wrap, state, posterior, param_options);
+  }
+};
+
+AmwgPlusStepper.prototype = Object.create(Stepper.prototype); 
+AmwgPlusStepper.prototype.constructor = AmwgPlusStepper;
+
+AmwgPlusStepper.prototype.step = function() {
+    var samplers_is = [];
+    var i;
+    for(i = 0; i < this.subsamplers.length; i++) {
+      samplers_is[i] = i;
+    }
+    shuffle_array(samplers_is);
+    
+  for(i = 0; i < samplers_is.length; i++) {
+    this.subsamplers[samplers_is[i]].step();
+  }
+  return this.state;
+};
+
+AmwgPlusStepper.prototype.start_adaptation = function() {
+  for(var i = 0; i < this.subsamplers.length; i++) {
+    this.subsamplers[i].start_adaptation();
+  }
+};
+
+AmwgPlusStepper.prototype.stop_adaptation = function() {
+  for(var i = 0; i < this.subsamplers.length; i++) {
+    this.subsamplers[i].stop_adaptation();
+  } 
+};
+
+AmwgPlusStepper.prototype.info = function() {
+  var info = {};
+  for(var i = 0; i < this.subsamplers.length; i++) {
+    info[this.param_names[i]] = this.subsamplers.info();
+  }
 };
 
 
