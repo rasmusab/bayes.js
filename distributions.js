@@ -138,8 +138,8 @@ var ldexp = function(x, rate) {
     return x < 0 ? -Infinity : log(rate) -rate * x;
 };
 
-var unif_log_pdf = function(x, a, b) {
-    return (x < a || x > b) ? -Infinity : log(1 / (b - a));
+var ldunif = function(x, min, max) {
+    return (x < min || x > max) ? -Infinity : log(1 / (max - min));
 };
 
 ////////// Discrete distributions //////////

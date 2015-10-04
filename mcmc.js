@@ -558,14 +558,15 @@ var BinaryComponentStepper = function(parameters, state, posterior, options) {
   var create_subsamplers = 
     function(dim, substate, posterior) {
     var subsamplers = [];
+    var i;
     if(dim.length === 1) {
-      for(var i = 0; i < dim[0]; i++) {
+      for(i = 0; i < dim[0]; i++) {
           var subparameters = {};
           subparameters[i] = parameter;
         subsamplers[i] = new BinaryStepper(subparameters, substate, posterior);
       }
     } else {
-      for(var i = 0; i < dim[0]; i++) {
+      for(i = 0; i < dim[0]; i++) {
         subsamplers[i] = create_subsamplers(dim.slice(1), substate[i], posterior);
       }
     }
@@ -589,6 +590,7 @@ var AmwgPlusStepper = function(parameters, state, posterior, options) {
   Stepper.call(this, parameters, state, posterior);
   this.param_names = Object.keys(this.parameters);
   this.subsamplers = [];
+  this.sampler_indices = [];
   for(var i = 0; i < this.param_names.length; i++) {
     var param = parameters[this.param_names[i]];
     var SelectStepper;
@@ -615,12 +617,13 @@ var AmwgPlusStepper = function(parameters, state, posterior, options) {
         }
         break;
       default:
-        throw "AmwgPlusStepper can't handle parameter " + this.param_names[i]  +" with type " + param.type;    
+        throw "AmwgPlusStepper can't handle parameter " + this.param_names[i]  +" with type " + param.type; 
     }
     var param_object_wrap = {};
     param_object_wrap[this.param_names[i]] = param;
     var param_options = options && options.parameters && options.parameters[this.param_names[i]];
     this.subsamplers[i] = new SelectStepper(param_object_wrap, state, posterior, param_options);
+    this.sampler_indices[i] = i;
   }
 };
 
@@ -628,15 +631,9 @@ AmwgPlusStepper.prototype = Object.create(Stepper.prototype);
 AmwgPlusStepper.prototype.constructor = AmwgPlusStepper;
 
 AmwgPlusStepper.prototype.step = function() {
-    var samplers_is = [];
-    var i;
-    for(i = 0; i < this.subsamplers.length; i++) {
-      samplers_is[i] = i;
-    }
-    shuffle_array(samplers_is);
-    
-  for(i = 0; i < samplers_is.length; i++) {
-    this.subsamplers[samplers_is[i]].step();
+  shuffle_array(this.sampler_indices);
+  for(var i = 0; i < this.sampler_indices.length; i++) {
+    this.subsamplers[this.sampler_indices[i]].step();
   }
   return this.state;
 };
@@ -656,8 +653,9 @@ AmwgPlusStepper.prototype.stop_adaptation = function() {
 AmwgPlusStepper.prototype.info = function() {
   var info = {};
   for(var i = 0; i < this.subsamplers.length; i++) {
-    info[this.param_names[i]] = this.subsamplers.info();
+    info[this.param_names[i]] = this.subsamplers[i].info();
   }
+  return info;
 };
 
 
