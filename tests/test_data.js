@@ -134,3 +134,38 @@ var multi_bern_dens = function(par) {
   return Math.log(x1 * x2 * 0.85 + (1 - x1*x2) * 0.15) + 
     Math.log(x3*x4 * 0.75 + (1 - x3*x4) * 0.25);
 };
+
+var params_complex_model = {
+  "p1": {
+    "type": "real",
+    "lower": 0,
+    "upper": 1
+  },
+  "n1": {
+    "type": "int",
+    "lower": 1,
+    "init": 1
+  },
+  "m": {
+    type: "binary"
+  }
+};
+
+var complex_model_post = function(par, x) {
+  var p1 = par.p1;
+  var n1 = par.n1;
+  var m = par.m;
+  var log_post = 0;
+  log_post += ldbern(m, 0.4);
+  log_post += ldbeta(p1, 2, 2);
+  log_post += ldnbinom(n1, 2, 0.1);
+  for(var i = 0; i < x.length; i++) {
+    if(m === 0) {
+      log_post += ldnbinom(x[i], 21, 0.5);
+    } else {
+      log_post += ldnbinom(x[i], n1, p1);
+      
+    }
+  }
+  return log_post;
+};

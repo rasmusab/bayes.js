@@ -141,7 +141,7 @@ test_that("BinaryComponentStepper works", {
   expect_more_than(binom.test(sum(bern_samples[ , 2, 2]), length(bern_samples[ , 2, 2]), p = expected_freq_x2)$p.val, 0.01)
 })
 
-test_that("AmwgPlustStepper works", {
+test_that("AmwgPlustStepper works on Normal model", {
   j$eval("var pars = complete_params(params1, param_init)" )
   j$eval("var state = {mu: pars.mu.init[0], sigma: pars.sigma.init[0]}")
   # round(rnorm(10, 100, 50))
@@ -168,4 +168,40 @@ test_that("AmwgPlustStepper works", {
   expect_more_than(cont_chisq_test(norm_post_samples[,1], jags_norm_samples[,1], no_splits = 10)$p.val, 0.01)
   expect_more_than(cont_chisq_test(norm_post_samples[,2], jags_norm_samples[,2], no_splits = 10)$p.val, 0.01)
   expect_more_than(cont_chisq_test(norm_post_samples, jags_norm_samples, no_splits = 5)$p.val, 0.01)
+})
+
+test_that("AmwgPlustStepper works on complex model", {
+  # First fitting the corresponding JAGS model
+  library(rjags)
+  jags_model_string <- "model {
+    m ~ dbern(0.40)
+    p0 <- 0.5
+    p1 ~ dbeta(2,2)
+    n0 <- 21
+    n1 ~ dnbinom(0.1, 2)
+    for(i in 1:length(x)) {
+      x[i] ~ dnbinom(m * p1 + (1 -m) * p0, m * n1 + (1 -m) * n0)
+    }
+  }"
+  jags_model <- jags.model(textConnection(jags_model_string), n.chains = 1, quiet = TRUE,
+                               data = list(x = c(9, 8, 32, 14, 10, 18, 15, 16, 15, 19)))
+  jags_samples <- coda.samples(jags_model, variable.names = c("m", "p1", "n1"), n.iter = 20000, thin = 10, progress.bar = "none")
+  jags_samples <- as.matrix(jags_samples)
+  
+    
+  j$eval("var pars = complete_params(params_complex_model, param_init)" )
+  j$eval("var state = {m: pars.m.init[0], p1: pars.p1.init[0], n1: pars.n1.init[0]}")
+  j$eval("var nbinom_data = [9, 8, 32, 14, 10, 18, 15, 16, 15, 19];")
+  j$eval("var posterior = function() { return complex_model_post(state, nbinom_data)};")
+  j$eval("var stepper = new AmwgPlusStepper(pars, state, posterior)")
+  post_samples = j$get("replicate(10000, function() {stepper.step(); return [state.m, state.n1, state.p1];})")
+  post_samples = j$get("replicate(20000, function() {stepper.step(); return [state.m, state.n1, state.p1];})")
+  post_samples <- post_samples[sample(1:nrow(post_samples), 2000),]
+  
+  expect_more_than(
+    prop.test(c(sum(post_samples[,1]), sum(jags_samples[,1])), 
+              c(nrow(post_samples), nrow(jags_samples)))$p.val, 0.01)
+  expect_more_than(cont_chisq_test(post_samples[,2], jags_samples[,2], no_splits = 10)$p.val, 0.01)
+  expect_more_than(cont_chisq_test(post_samples[,3], jags_samples[,3], no_splits = 10)$p.val, 0.01)
+  expect_more_than(cont_chisq_test(post_samples[,2:3], jags_samples[,2:3], no_splits = 5)$p.val, 0.01)
 })
