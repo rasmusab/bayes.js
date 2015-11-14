@@ -206,14 +206,29 @@ test_that("AmwgtStepper works on complex model", {
   expect_more_than(cont_chisq_test(post_samples[,2:3], jags_complex_samples[,2:3], no_splits = 5)$p.val, 0.01)
 })
 
-test_that("AmwgtSampler works on Normal model", {
+test_that("AmwgSampler works on Normal model", {
   j$eval("var norm_data = [100, 62, 96, 122, 141, 144, 74, 73, 78, 128];")
   j$eval("var sampler =  new AmwgSampler(params1, norm_post, norm_data);")
   norm_post_samples = j$get("sampler.burn(10000)")
   norm_post_samples = as.data.frame(j$get("sampler.sample(10000)"))
   norm_post_samples = norm_post_samples[sample(1:nrow(norm_post_samples), 2000),]
   
-  expect_more_than(cont_chisq_test(norm_post_samples[,1], jags_norm_samples[,1], no_splits = 10)$p.val, 0.01)
-  expect_more_than(cont_chisq_test(norm_post_samples[,2], jags_norm_samples[,2], no_splits = 10)$p.val, 0.01)
+  expect_more_than(cont_chisq_test(norm_post_samples$mu, jags_norm_samples[,1], no_splits = 10)$p.val, 0.01)
+  expect_more_than(cont_chisq_test(norm_post_samples$sigma, jags_norm_samples[,2], no_splits = 10)$p.val, 0.01)
   expect_more_than(cont_chisq_test(norm_post_samples, jags_norm_samples, no_splits = 5)$p.val, 0.01)
+})
+
+test_that("AmwgSampler works on complex model", {
+  j$eval("var nbinom_data = [9, 8, 32, 14, 10, 18, 15, 16, 15, 19];")
+  j$eval("var sampler =  new AmwgSampler(params_complex_model, complex_model_post, nbinom_data);")
+  j$eval("sampler.burn(10000)")
+  post_samples = as.data.frame(j$get("sampler.sample(20000)"))
+  post_samples <- post_samples[sample(1:nrow(post_samples), 2000),]
+  
+  expect_more_than(
+    prop.test(c(sum(post_samples$m), sum(jags_complex_samples[,1])), 
+              c(nrow(post_samples), nrow(jags_complex_samples)))$p.val, 0.01)
+  expect_more_than(cont_chisq_test(post_samples$n1, jags_complex_samples[,2], no_splits = 10)$p.val, 0.01)
+  expect_more_than(cont_chisq_test(post_samples$p1, jags_complex_samples[,3], no_splits = 10)$p.val, 0.01)
+  expect_more_than(cont_chisq_test(post_samples[,c("n1", "p1")], jags_complex_samples[,2:3], no_splits = 5)$p.val, 0.01)
 })
