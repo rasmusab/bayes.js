@@ -203,7 +203,7 @@ var get_multidim_option = function(option_name, options, dim, defaul_value) {
 ////////// Functions for handling parameter objects //////////
 
 // Returns a number that can be used to initialize a parameter
-var param_init = function(type, lower, upper) {
+var param_init_fixed = function(type, lower, upper) {
   if(type === "real") {
     if(lower === -Infinity && upper === Infinity) {
       return 0.5;
@@ -244,21 +244,33 @@ var complete_params  = function(params_to_complete, param_init) {
       param.type = "real";
     }
     if(!param.hasOwnProperty("dim")) {
-      param.dim = [1];
+      param.dim = null;
     }
     if(is_number(param.dim)) {
       param.dim = [param.dim];
     }
     if(!param.hasOwnProperty("upper")) {
-      param.upper = Infinity;
+      if(param.type == "binary") {
+        param.upper = 1;
+      } else {
+        param.upper = Infinity;
+      }
     }
     if(!param.hasOwnProperty("lower")) {
-      param.lower = -Infinity;
+        if(param.type == "binary") {
+          param.lower = 0;
+      } else {
+        param.lower = -Infinity;
+      }
     }
     if(!param.hasOwnProperty("init")) {
-      param.init = create_array(param.dim, 
-                                param_init(param.type, param.lower, param.upper));
-    } else if(! Array.isArray(param.init)) {
+      if(Array.isArray(param.dim)) {
+        param.init = 
+          create_array(param.dim, param_init(param.type, param.lower, param.upper));  
+      } else {
+        param.init = param_init(param.type, param.lower, param.upper);
+      }
+    } else if(Array.isArray(param.dim) && !Array.isArray(param.init)) {
       param.init = create_array(param.dim, param.init);
     }
   }
@@ -561,8 +573,8 @@ var BinaryComponentStepper = function(parameters, state, posterior, options) {
     var i;
     if(dim.length === 1) {
       for(i = 0; i < dim[0]; i++) {
-          var subparameters = {};
-          subparameters[i] = parameter;
+        var subparameters = {};
+        subparameters[i] = parameter;
         subsamplers[i] = new BinaryStepper(subparameters, substate, posterior);
       }
     } else {
@@ -584,9 +596,9 @@ BinaryComponentStepper.prototype.step = function() {
   return nested_array_random_apply(this.subsamplers, function(subsampler) {return subsampler.step(); });
 };
 
-////////// AmwgPlusStepper (Adaptive Metropolis With Gibbs +) //////////
+////////// AmwgStepper (Adaptive Metropolis With Gibbs) //////////
 
-var AmwgPlusStepper = function(parameters, state, posterior, options) {
+var AmwgStepper = function(parameters, state, posterior, options) {
   Stepper.call(this, parameters, state, posterior);
   this.param_names = Object.keys(this.parameters);
   this.subsamplers = [];
@@ -617,7 +629,7 @@ var AmwgPlusStepper = function(parameters, state, posterior, options) {
         }
         break;
       default:
-        throw "AmwgPlusStepper can't handle parameter " + this.param_names[i]  +" with type " + param.type; 
+        throw "AmwgStepper can't handle parameter " + this.param_names[i]  +" with type " + param.type; 
     }
     var param_object_wrap = {};
     param_object_wrap[this.param_names[i]] = param;
@@ -627,10 +639,10 @@ var AmwgPlusStepper = function(parameters, state, posterior, options) {
   }
 };
 
-AmwgPlusStepper.prototype = Object.create(Stepper.prototype); 
-AmwgPlusStepper.prototype.constructor = AmwgPlusStepper;
+AmwgStepper.prototype = Object.create(Stepper.prototype); 
+AmwgStepper.prototype.constructor = AmwgStepper;
 
-AmwgPlusStepper.prototype.step = function() {
+AmwgStepper.prototype.step = function() {
   shuffle_array(this.sampler_indices);
   for(var i = 0; i < this.sampler_indices.length; i++) {
     this.subsamplers[this.sampler_indices[i]].step();
@@ -638,19 +650,19 @@ AmwgPlusStepper.prototype.step = function() {
   return this.state;
 };
 
-AmwgPlusStepper.prototype.start_adaptation = function() {
+AmwgStepper.prototype.start_adaptation = function() {
   for(var i = 0; i < this.subsamplers.length; i++) {
     this.subsamplers[i].start_adaptation();
   }
 };
 
-AmwgPlusStepper.prototype.stop_adaptation = function() {
+AmwgStepper.prototype.stop_adaptation = function() {
   for(var i = 0; i < this.subsamplers.length; i++) {
     this.subsamplers[i].stop_adaptation();
   } 
 };
 
-AmwgPlusStepper.prototype.info = function() {
+AmwgStepper.prototype.info = function() {
   var info = {};
   for(var i = 0; i < this.subsamplers.length; i++) {
     info[this.param_names[i]] = this.subsamplers[i].info();
@@ -661,38 +673,141 @@ AmwgPlusStepper.prototype.info = function() {
 
 
 /////////// Sampler Interface //////////
-
-var Sampler = function(parameters, posterior, options) {
+// While you could fit a model using the Steppers above, the
+// Sampler is a convenience class where an instance of Sampler
+// sets up the steppers, checks the parameter definition,
+// and manages the sampling.
+var Sampler = function(parameters, posterior, data, options) {
   this.parameters = parameters;
-  this.posterior = posterior;
-  this.options = options;
+  this.data = data;
+  this.param_names = Object.keys(this.parameters);
+  
+  
+  // Setting default options if not passed through the options object
+  this.param_init_fun   = get_option("param_init_fun", options, param_init_fixed);
+  var thinning_interval = get_option("thin", options, 1);
+  var params_to_monitor = get_option("monitor", options, null);
+  this.thin(thinning_interval);
+  this.monitor(params_to_monitor);
+  // Completing the parameters and initializing the state.
+  this.parameters = complete_params(this.parameters, this.param_init_fun);
+  var state = {};
+  for(var i = 0; i < this.param_names.length; i++ ) {
+    state[this.param_names[i]] = this.parameters[this.param_names[i]].init;
+  }
+  this.posterior = function() { 
+    return posterior(state, data);
+  };
+  this.state = state;
+  this.steppers = this.create_stepper_ensamble();
 };
 
-Sampler.prototype.sample = function( ) {
-  throw "Every Sampler needs to implement sample()";
+// Creates an vector of steppers that when called 
+// should take a step in the parameterspace.
+Sampler.prototype.create_stepper_ensamble = function(state, posterior){
+  throw "Every Sampler needs to implement create_stepper_ensamble()";
 };
 
-Sampler.prototype.monitor = function( ) {
-  // Optional, some steppers might not be adaptive. 
-};
-
-Sampler.prototype.thin = function() {
-};
-
+// Returns an object with info about the state of the Sampler.
 Sampler.prototype.info = function() {
-  // Returns an object with info about the state of the Sampler.
-  return {};
+  return {state: this.state, thin: this.thin, monitor: this.monitor,
+          steppers: this.steppers};
+};
+
+Sampler.prototype.step = function() {
+  for(var i = 0; i < this.steppers.length; i++) {
+    this.steppers[i].step();
+  }
+};
+
+Sampler.prototype.sample = function(n_iterations) {
+  if(this.monitored_params.length === 0) {
+    this.burn(n_iterations);
+    return {};
+  } else {
+    // Initializing curr_sample where the sample is going to be saved
+    // as an object containing one array per parameter to be monitored.
+    var curr_sample = {};
+    var i, j;
+    for(j = 0; j < this.monitored_params.length; j++) {
+      curr_sample[this.monitored_params[j]] = [];
+    }
+    
+    for(i = 0; i < n_iterations; i++) {
+      for(j = 0; j < this.monitored_params.length; j++) {
+        var param = this.monitored_params[j];
+        curr_sample[param].push(this.state[param]);
+      }
+      this.step();
+    }
+    return curr_sample;
+  }
+};
+
+Sampler.prototype.burn = function(n_iterations) {
+  for(var i = 0; i < n_iterations; i++) {
+    this.step();
+  }
+};
+
+Sampler.prototype.monitor = function(params_to_monitor) {
+// sets what parameters to monitor, overwrites last monitor
+  if(params_to_monitor === null) {
+    this.monitored_params = this.param_names;
+  } else {
+    this.monitored_params = params_to_monitor;  
+  }
+};
+
+Sampler.prototype.thin = function(thinning_interval) {
+  this.thinning_interval = thinning_interval;
 };
 
 Sampler.prototype.start_adaptation = function() {
-  // Optional, some steppers might not be adaptive. */ 
+  for(var i = 0; i < this.steppers.length; i++) {
+    this.steppers[i].start_adaptation();
+  }
 };
 
 Sampler.prototype.stop_adaptation = function() {
-  // Optional, some steppers might not be adaptive. */ 
+  for(var i = 0; i < this.steppers.length; i++) {
+    this.steppers[i].stop_adaptation();
+  }
 };
 
-////////////////////
+////////// AmwgSampler /////////
+
+var AmwgSampler = function(parameters, posterior, data,options) {
+  Sampler.call(this, parameters, posterior, data, options);
+};
+
+AmwgSampler.prototype = Object.create(Sampler.prototype); 
+AmwgSampler.prototype.constructor = AmwgSampler;
+
+AmwgSampler.prototype.create_stepper_ensamble = function(){
+  return [ new AmwgStepper(this.parameters, this.state, this.posterior) ];
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 /*

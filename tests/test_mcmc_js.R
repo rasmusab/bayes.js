@@ -37,10 +37,10 @@ j$source("test_data.js")
 #j$source("mcmc.js"); j$source("distributions.js"); j$source("tests/test_data.js")
 
 test_that("parameter completion works", {
-  params1 <- sort_list_by_names(j$get( "complete_params(params1, param_init)" ))
+  params1 <- sort_list_by_names(j$get( "complete_params(params1, param_init_fixed)" ))
   params1_completed <- sort_list_by_names(j$get( "params1_completed" ))
   expect_identical(params1, params1_completed)
-  params2 <- sort_list_by_names(j$get( "complete_params(params2, param_init)" ))
+  params2 <- sort_list_by_names(j$get( "complete_params(params2, param_init_fixed)" ))
   params2_completed <- sort_list_by_names(j$get( "params2_completed" ))
   expect_identical(params2, params2_completed)
 })
@@ -141,67 +141,79 @@ test_that("BinaryComponentStepper works", {
   expect_more_than(binom.test(sum(bern_samples[ , 2, 2]), length(bern_samples[ , 2, 2]), p = expected_freq_x2)$p.val, 0.01)
 })
 
-test_that("AmwgPlustStepper works on Normal model", {
-  j$eval("var pars = complete_params(params1, param_init)" )
+### Fitting a couple of jags models so that I can compare their output
+### with the output of the library.
+library(rjags)
+jags_norm_post_string <- "model {
+  mu ~ dnorm(0, 1 / (100 * 100))
+  sigma ~ dunif(0, 100)
+  for(i in 1:length(x)) {
+    x[i] ~ dnorm(mu, 1 / (sigma * sigma))
+  }
+}"
+jags_norm_post <- jags.model(textConnection(jags_norm_post_string), inits = list(mu = 0, sigma = 1), quiet = TRUE,
+                             data = list(x = c(100, 62, 96, 122, 141, 144, 74, 73, 78, 128)), n.chains = 1)
+jags_norm_samples <- coda.samples(jags_norm_post, variable.names = c("mu", "sigma"), n.iter = 10000, thin = 5, progress.bar = "none")
+jags_norm_samples <- as.matrix(jags_norm_samples)
+  
+jags_complex_model_string <- "model {
+  m ~ dbern(0.40)
+  p0 <- 0.5
+  p1 ~ dbeta(2,2)
+  n0 <- 21
+  n1 ~ dnbinom(0.1, 2)
+  for(i in 1:length(x)) {
+    x[i] ~ dnbinom(m * p1 + (1 -m) * p0, m * n1 + (1 -m) * n0)
+  }
+}"
+jags_complex_model <- jags.model(textConnection(jags_complex_model_string), n.chains = 1, quiet = TRUE,
+                           data = list(x = c(9, 8, 32, 14, 10, 18, 15, 16, 15, 19)))
+jags_complex_samples <- coda.samples(jags_complex_model, variable.names = c("m", "p1", "n1"), n.iter = 20000, thin = 10, progress.bar = "none")
+jags_complex_samples <- as.matrix(jags_complex_samples)
+
+test_that("AmwgtStepper works on Normal model", {
+  j$eval("var pars = complete_params(params1, param_init_fixed)" )
   j$eval("var state = {mu: pars.mu.init[0], sigma: pars.sigma.init[0]}")
   # round(rnorm(10, 100, 50))
   j$eval("var norm_data = [100, 62, 96, 122, 141, 144, 74, 73, 78, 128];")
   j$eval("var posterior = function() { return norm_post(state, norm_data)};")
-  j$eval("var stepper = new AmwgPlusStepper(pars, state, posterior)")
+  j$eval("var stepper = new AmwgStepper(pars, state, posterior)")
   norm_post_samples = j$get("replicate(10000, function() {stepper.step(); return [state.mu, state.sigma];})")
   norm_post_samples = j$get("replicate(10000, function() {stepper.step(); return [state.mu, state.sigma];})")
   norm_post_samples = norm_post_samples[sample(1:nrow(norm_post_samples), 2000),]
-  
-  library(rjags)
-  jags_norm_post_string <- "model {
-    mu ~ dnorm(0, 1 / (100 * 100))
-    sigma ~ dunif(0, 100)
-    for(i in 1:length(x)) {
-      x[i] ~ dnorm(mu, 1 / (sigma * sigma))
-    }
-  }"
-  jags_norm_post <- jags.model(textConnection(jags_norm_post_string), inits = list(mu = 0, sigma = 1), quiet = TRUE,
-                               data = list(x = c(100, 62, 96, 122, 141, 144, 74, 73, 78, 128)), n.chains = 1)
-  jags_norm_samples <- coda.samples(jags_norm_post, variable.names = c("mu", "sigma"), n.iter = 10000, thin = 5, progress.bar = "none")
-  jags_norm_samples <- as.matrix(jags_norm_samples)
   
   expect_more_than(cont_chisq_test(norm_post_samples[,1], jags_norm_samples[,1], no_splits = 10)$p.val, 0.01)
   expect_more_than(cont_chisq_test(norm_post_samples[,2], jags_norm_samples[,2], no_splits = 10)$p.val, 0.01)
   expect_more_than(cont_chisq_test(norm_post_samples, jags_norm_samples, no_splits = 5)$p.val, 0.01)
 })
 
-test_that("AmwgPlustStepper works on complex model", {
-  # First fitting the corresponding JAGS model
-  library(rjags)
-  jags_model_string <- "model {
-    m ~ dbern(0.40)
-    p0 <- 0.5
-    p1 ~ dbeta(2,2)
-    n0 <- 21
-    n1 ~ dnbinom(0.1, 2)
-    for(i in 1:length(x)) {
-      x[i] ~ dnbinom(m * p1 + (1 -m) * p0, m * n1 + (1 -m) * n0)
-    }
-  }"
-  jags_model <- jags.model(textConnection(jags_model_string), n.chains = 1, quiet = TRUE,
-                               data = list(x = c(9, 8, 32, 14, 10, 18, 15, 16, 15, 19)))
-  jags_samples <- coda.samples(jags_model, variable.names = c("m", "p1", "n1"), n.iter = 20000, thin = 10, progress.bar = "none")
-  jags_samples <- as.matrix(jags_samples)
-  
-    
-  j$eval("var pars = complete_params(params_complex_model, param_init)" )
+test_that("AmwgtStepper works on complex model", {
+
+  j$eval("var pars = complete_params(params_complex_model, param_init_fixed)" )
   j$eval("var state = {m: pars.m.init[0], p1: pars.p1.init[0], n1: pars.n1.init[0]}")
   j$eval("var nbinom_data = [9, 8, 32, 14, 10, 18, 15, 16, 15, 19];")
   j$eval("var posterior = function() { return complex_model_post(state, nbinom_data)};")
-  j$eval("var stepper = new AmwgPlusStepper(pars, state, posterior)")
+  j$eval("var stepper = new AmwgStepper(pars, state, posterior)")
   post_samples = j$get("replicate(10000, function() {stepper.step(); return [state.m, state.n1, state.p1];})")
   post_samples = j$get("replicate(20000, function() {stepper.step(); return [state.m, state.n1, state.p1];})")
   post_samples <- post_samples[sample(1:nrow(post_samples), 2000),]
   
   expect_more_than(
-    prop.test(c(sum(post_samples[,1]), sum(jags_samples[,1])), 
-              c(nrow(post_samples), nrow(jags_samples)))$p.val, 0.01)
-  expect_more_than(cont_chisq_test(post_samples[,2], jags_samples[,2], no_splits = 10)$p.val, 0.01)
-  expect_more_than(cont_chisq_test(post_samples[,3], jags_samples[,3], no_splits = 10)$p.val, 0.01)
-  expect_more_than(cont_chisq_test(post_samples[,2:3], jags_samples[,2:3], no_splits = 5)$p.val, 0.01)
+    prop.test(c(sum(post_samples[,1]), sum(jags_complex_samples[,1])), 
+              c(nrow(post_samples), nrow(jags_complex_samples)))$p.val, 0.01)
+  expect_more_than(cont_chisq_test(post_samples[,2], jags_complex_samples[,2], no_splits = 10)$p.val, 0.01)
+  expect_more_than(cont_chisq_test(post_samples[,3], jags_complex_samples[,3], no_splits = 10)$p.val, 0.01)
+  expect_more_than(cont_chisq_test(post_samples[,2:3], jags_complex_samples[,2:3], no_splits = 5)$p.val, 0.01)
+})
+
+test_that("AmwgtSampler works on Normal model", {
+  j$eval("var norm_data = [100, 62, 96, 122, 141, 144, 74, 73, 78, 128];")
+  j$eval("var sampler =  new AmwgSampler(params1, norm_post, norm_data);")
+  norm_post_samples = j$get("sampler.burn(10000)")
+  norm_post_samples = j$get("sampler.sample(100)")
+  norm_post_samples = norm_post_samples[sample(1:nrow(norm_post_samples), 2000),]
+  
+  expect_more_than(cont_chisq_test(norm_post_samples[,1], jags_norm_samples[,1], no_splits = 10)$p.val, 0.01)
+  expect_more_than(cont_chisq_test(norm_post_samples[,2], jags_norm_samples[,2], no_splits = 10)$p.val, 0.01)
+  expect_more_than(cont_chisq_test(norm_post_samples, jags_norm_samples, no_splits = 5)$p.val, 0.01)
 })
