@@ -20,14 +20,14 @@ var params1 = {
 var params1_completed = {
   "mu": {
     "type": "real",
-    "dim": null,
+    "dim": [1],
     "upper": Infinity,
     "lower": -Infinity,
     "init": 0.5
   },
   "sigma": {
     "type": "real",
-    "dim": null,
+    "dim": [1],
     "upper": Infinity,
     "lower": 0,
     "init": 1
@@ -49,7 +49,7 @@ var params2 = {
 var params2_completed = {
   "theta": {
     "type": "real",
-    "dim": null,
+    "dim": [1],
     "upper": Infinity,
     "lower": -Infinity,
     "init": 0.5
@@ -57,7 +57,7 @@ var params2_completed = {
   "state": {
     "type": "binary",
     "init": 1,
-    "dim": null,
+    "dim": [1],
     "upper": 1,
     "lower": 0
   },

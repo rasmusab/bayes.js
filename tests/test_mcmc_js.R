@@ -173,7 +173,7 @@ jags_complex_samples <- as.matrix(jags_complex_samples)
 
 test_that("AmwgtStepper works on Normal model", {
   j$eval("var pars = complete_params(params1, param_init_fixed)" )
-  j$eval("var state = {mu: pars.mu.init[0], sigma: pars.sigma.init[0]}")
+  j$eval("var state = {mu: pars.mu.init, sigma: pars.sigma.init}")
   # round(rnorm(10, 100, 50))
   j$eval("var norm_data = [100, 62, 96, 122, 141, 144, 74, 73, 78, 128];")
   j$eval("var posterior = function() { return norm_post(state, norm_data)};")
@@ -190,7 +190,7 @@ test_that("AmwgtStepper works on Normal model", {
 test_that("AmwgtStepper works on complex model", {
 
   j$eval("var pars = complete_params(params_complex_model, param_init_fixed)" )
-  j$eval("var state = {m: pars.m.init[0], p1: pars.p1.init[0], n1: pars.n1.init[0]}")
+  j$eval("var state = {m: pars.m.init, p1: pars.p1.init, n1: pars.n1.init}")
   j$eval("var nbinom_data = [9, 8, 32, 14, 10, 18, 15, 16, 15, 19];")
   j$eval("var posterior = function() { return complex_model_post(state, nbinom_data)};")
   j$eval("var stepper = new AmwgStepper(pars, state, posterior)")
@@ -210,7 +210,7 @@ test_that("AmwgtSampler works on Normal model", {
   j$eval("var norm_data = [100, 62, 96, 122, 141, 144, 74, 73, 78, 128];")
   j$eval("var sampler =  new AmwgSampler(params1, norm_post, norm_data);")
   norm_post_samples = j$get("sampler.burn(10000)")
-  norm_post_samples = j$get("sampler.sample(100)")
+  norm_post_samples = as.data.frame(j$get("sampler.sample(10000)"))
   norm_post_samples = norm_post_samples[sample(1:nrow(norm_post_samples), 2000),]
   
   expect_more_than(cont_chisq_test(norm_post_samples[,1], jags_norm_samples[,1], no_splits = 10)$p.val, 0.01)

@@ -244,33 +244,29 @@ var complete_params  = function(params_to_complete, param_init) {
       param.type = "real";
     }
     if(!param.hasOwnProperty("dim")) {
-      param.dim = null;
+      param.dim = [1];
     }
     if(is_number(param.dim)) {
       param.dim = [param.dim];
     }
+    if(param.type == "binary") {
+      param.upper = 1;
+      param.lower = 0;
+    }
     if(!param.hasOwnProperty("upper")) {
-      if(param.type == "binary") {
-        param.upper = 1;
-      } else {
-        param.upper = Infinity;
-      }
+      param.upper = Infinity;
     }
     if(!param.hasOwnProperty("lower")) {
-        if(param.type == "binary") {
-          param.lower = 0;
-      } else {
-        param.lower = -Infinity;
-      }
+      param.lower = -Infinity;
     }
     if(!param.hasOwnProperty("init")) {
-      if(Array.isArray(param.dim)) {
-        param.init = 
-          create_array(param.dim, param_init(param.type, param.lower, param.upper));  
-      } else {
+      if(array_equal(param.dim, [1])) {
         param.init = param_init(param.type, param.lower, param.upper);
+      } else {
+        param.init = 
+          create_array(param.dim, param_init(param.type, param.lower, param.upper));
       }
-    } else if(Array.isArray(param.dim) && !Array.isArray(param.init)) {
+    } else if(!array_equal(param.dim, [1]) && !Array.isArray(param.init)) {
       param.init = create_array(param.dim, param.init);
     }
   }
