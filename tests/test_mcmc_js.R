@@ -55,7 +55,7 @@ test_that("the js version of rnorm works (this might fail occationally as it is 
 test_that("RealMetropolisStepper works", {
   j$eval("var state = {x: 0}")
   j$eval("var posterior = function() { return norm_dens(state)};")
-  j$eval("var parameters = {x: {lower: -Infinity, upper: Infinity}};")
+  j$eval("var parameters = {x: {lower: -Infinity, upper: Infinity, dim:[1]}};")
   j$eval("var stepper = new RealMetropolisStepper(parameters, state, posterior)")
   norm_samples = j$get("replicate(10000, function()  {return stepper.step()} )")
   norm_samples = norm_samples[sample(1:10000, 1000)]
@@ -67,7 +67,7 @@ test_that("RealMetropolisStepper works", {
 test_that("IntMetropolisStepper works", {
   j$eval("var state = {x: 1}")
   j$eval("var posterior = function() { return poisson_dens(state)};")
-  j$eval("var parameters = {x: {lower: 0, upper: Infinity}};")
+  j$eval("var parameters = {x: {lower: 0, upper: Infinity, dim:[1]}};")
   j$eval("var stepper = new IntMetropolisStepper(parameters, state, posterior)")
   poisson_samples = j$get("replicate(10000, function()  {return stepper.step()} )")
   poisson_samples = poisson_samples[sample(1:10000, 1000)]
@@ -180,7 +180,7 @@ test_that("AmwgtStepper works on Normal model", {
   j$eval("var stepper = new AmwgStepper(pars, state, posterior)")
   norm_post_samples = j$get("replicate(10000, function() {stepper.step(); return [state.mu, state.sigma];})")
   norm_post_samples = j$get("replicate(10000, function() {stepper.step(); return [state.mu, state.sigma];})")
-  norm_post_samples = norm_post_samples[sample(1:nrow(norm_post_samples), 2000),]
+  norm_post_samples = norm_post_samples[sample(1:nrow(norm_post_samples), 1000),]
   
   expect_more_than(cont_chisq_test(norm_post_samples[,1], jags_norm_samples[,1], no_splits = 10)$p.val, 0.01)
   expect_more_than(cont_chisq_test(norm_post_samples[,2], jags_norm_samples[,2], no_splits = 10)$p.val, 0.01)
@@ -195,8 +195,8 @@ test_that("AmwgtStepper works on complex model", {
   j$eval("var posterior = function() { return complex_model_post(state, nbinom_data)};")
   j$eval("var stepper = new AmwgStepper(pars, state, posterior)")
   post_samples = j$get("replicate(10000, function() {stepper.step(); return [state.m, state.n1, state.p1];})")
-  post_samples = j$get("replicate(20000, function() {stepper.step(); return [state.m, state.n1, state.p1];})")
-  post_samples <- post_samples[sample(1:nrow(post_samples), 2000),]
+  post_samples = j$get("replicate(30000, function() {stepper.step(); return [state.m, state.n1, state.p1];})")
+  post_samples <- post_samples[sample(1:nrow(post_samples), 1000),]
   
   expect_more_than(
     prop.test(c(sum(post_samples[,1]), sum(jags_complex_samples[,1])), 
@@ -211,7 +211,7 @@ test_that("AmwgSampler works on Normal model", {
   j$eval("var sampler =  new AmwgSampler(params1, norm_post, norm_data);")
   norm_post_samples = j$get("sampler.burn(10000)")
   norm_post_samples = as.data.frame(j$get("sampler.sample(10000)"))
-  norm_post_samples = norm_post_samples[sample(1:nrow(norm_post_samples), 2000),]
+  norm_post_samples = norm_post_samples[sample(1:nrow(norm_post_samples), 1000),]
   
   expect_more_than(cont_chisq_test(norm_post_samples$mu, jags_norm_samples[,1], no_splits = 10)$p.val, 0.01)
   expect_more_than(cont_chisq_test(norm_post_samples$sigma, jags_norm_samples[,2], no_splits = 10)$p.val, 0.01)
@@ -222,8 +222,8 @@ test_that("AmwgSampler works on complex model", {
   j$eval("var nbinom_data = [9, 8, 32, 14, 10, 18, 15, 16, 15, 19];")
   j$eval("var sampler =  new AmwgSampler(params_complex_model, complex_model_post, nbinom_data);")
   j$eval("sampler.burn(10000)")
-  post_samples = as.data.frame(j$get("sampler.sample(20000)"))
-  post_samples <- post_samples[sample(1:nrow(post_samples), 2000),]
+  post_samples = as.data.frame(j$get("sampler.sample(30000)"))
+  post_samples <- post_samples[sample(1:nrow(post_samples), 1000),]
   
   expect_more_than(
     prop.test(c(sum(post_samples$m), sum(jags_complex_samples[,1])), 

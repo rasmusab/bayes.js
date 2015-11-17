@@ -2,7 +2,7 @@
 
 ////////// Helper Functions //////////
 
-// Returns a random number between min and max;
+// Returns a random real number between min and max;
 var runif = function(min, max) {
   return Math.random() * (max - min) + min;
 };
@@ -28,7 +28,6 @@ var rnorm = function(mean, sd) {
 };
 
 // Clones an object. From http://davidwalsh.name/javascript-clone
-// Should probably use https://github.com/pvorb/node-clone instead...
 var deep_clone = function(src) {
 	function mixin(dest, source, copyFunc) {
 		var name, s, i, empty = {};
@@ -80,6 +79,7 @@ var is_number = function(object) {
 };
 
 // create a multidimensional array. Adapted from http://stackoverflow.com/a/966938/1001848
+// Example: create_array([2,3], 1) -> [[1,1],[1,1],[1,1]]
 var create_array = function(dim, init) {
   var arr = new Array(dim[0]);
   var i;
@@ -103,7 +103,7 @@ var create_array = function(dim, init) {
   return arr;
 };
 
-// return the dimensions of a possibly nested array as an array, for example:
+// Return the dimensions of a possibly nested array as an array, for example:
 // array_dim(create_array([4, 2, 1], 0)) -> [4, 2, 1]
 // This assumes that all arrays inside another array are of the same length.
 var array_dim = function(a) {
@@ -131,7 +131,8 @@ var array_equal = function (a1, a2) {
     return true;
 };
 
-// Traverses a possibly nested array a and applies fun to all "leaf nodes" / values that are not arrays.
+// Traverses a possibly nested array a and applies fun to all "leaf nodes", that is, 
+// values that are not arrays.
 var nested_array_apply = function(a, fun) {
   if(Array.isArray(a)) {
     var result = new Array(a.length);
@@ -235,7 +236,7 @@ var param_init_fixed = function(type, lower, upper) {
 //  { "mu": {"type": "real"} }
 // gets completed into this:
 //  {"mu": { "type": "real", "dim": [1], "upper": Infinity,
-//           "lower": -Infinity, "init": [0.5] }}
+//           "lower": -Infinity, "init": 0.5 }}
 var complete_params  = function(params_to_complete, param_init) {
   var params = deep_clone(params_to_complete);
   for (var param_name in params) { if (!params.hasOwnProperty(param_name)) continue;
@@ -277,18 +278,21 @@ var complete_params  = function(params_to_complete, param_init) {
 ////////// Stepper interface ///////////
 
 
-// parameters: An object with parameter definitions, for example:
+// A Stepper is an object responsible for pushing around one
+// or more parameter values in a state according to the distribution
+// defined by the log posterior.
+// params: An object with parameter definitions, for example:
 //             {x:{ type: real }}
 // state     : An object with containing the state of each parameter 
 //             as either a scalar or an array. For example:
 //            {sigma:5, beta: [1, 2.5]}
-// posterior : A function *taking no parameters* that returns the
+// log_post : A function *taking no parameters* that returns the
 //             current log density. That is, the value of posterior()
 //             needs to change if the values in state changes.
-var Stepper = function(parameters, state, posterior) {
-  this.parameters = parameters;
+var Stepper = function(params, state, log_post) {
+  this.params = params;
   this.state = state;
-  this.posterior = posterior;
+  this.log_post = log_post;
 };
 
 Stepper.prototype.step = function() {
@@ -313,23 +317,26 @@ Stepper.prototype.info = function() {
 // Constructor for an object that implements the metropolis step in
 // the Adaptive Metropolis-Within-Gibbs algorithm in "Examples of Adaptive MCMC"
 // by Roberts and Rosenthal (2008).
-// parameters: an object containing a single parameter definition
-// state: A reference to the state object that this sampler will affect.
-// posterior: A function returning the log likelihood that takes no arguments but
+// params: an object containing a single parameter definition of 
+//         a one dimensional parameter.
+// state: A reference to the state object that this stepper will affect.
+// log_post: A function returning the log likelihood that takes no arguments but
 //            that should depend on state.
-// options: An optional object containing options to the sampler. 
-var OnedimMetropolisStepper = function(parameters, state, posterior, options, generate_proposal) {
-  Stepper.call(this, parameters, state, posterior);
+// options: An optional object containing options to the stepper. 
+var OnedimMetropolisStepper = function(params, state, log_post, options, generate_proposal) {
+  Stepper.call(this, params, state, log_post);
   
-  var param_names = Object.keys(this.parameters);
-  if(param_names.length  == 1) {
-    this.param_name = param_names[0];
-    var parameter = this.parameters[this.param_name];
-    this.lower = parameter.lower;
-    this.upper = parameter.upper;
-  } else {
-    throw "OnedimMetropolisStepper can't handle more than one parameter.";
+  var param_names = Object.keys(this.params);
+  if(param_names.length  != 1) {
+    throw "OnedimMetropolisStepper can only handle one parameter.";
   }
+  this.param_name = param_names[0];
+  var param = this.params[this.param_name];
+  if(!array_equal(param.dim, [1])) {
+    throw "OnedimMetropolisStepper can only handle one one-dimensional parameter.";
+  }
+  this.lower = param.lower;
+  this.upper = param.upper;
   
   this.prop_log_scale     = get_option("prop_log_scale", options, 0);
   this.batch_size         = get_option("batch_size", options, 50);
@@ -354,9 +361,9 @@ OnedimMetropolisStepper.prototype.step = function() {
       // Outside of limits of the parameter, reject the proposal 
       // and stay at the current state.
     } else { // make a Metropolis step
-      var curr_log_dens = this.posterior();
+      var curr_log_dens = this.log_post();
       this.state[this.param_name] = param_proposal;
-      var prop_log_dens = this.posterior();
+      var prop_log_dens = this.log_post();
       var accept_prob = Math.exp(prop_log_dens - curr_log_dens);
       if(accept_prob > Math.random()) {
         // We do nothing as the state of param has already been changed to the proposal
@@ -403,26 +410,28 @@ OnedimMetropolisStepper.prototype.info = function() {
 
 
 ////////// RealMetropolisStepper ///////////
+// A subclass of OnedimMetropolisStepper making continous Normal proposals
 
 var normal_proposal = function(param_state, prop_log_scale) {
   return rnorm(param_state , Math.exp(prop_log_scale));
 };
 
-var RealMetropolisStepper = function(parameters, state, posterior, options) {
-  OnedimMetropolisStepper.call(this, parameters, state, posterior, options, normal_proposal);
+var RealMetropolisStepper = function(params, state, log_post, options) {
+  OnedimMetropolisStepper.call(this, params, state, log_post, options, normal_proposal);
 };
 
 RealMetropolisStepper.prototype = Object.create(OnedimMetropolisStepper.prototype); 
 RealMetropolisStepper.prototype.constructor = RealMetropolisStepper;
 
 ////////// IntMetropolisStepper ///////////
+// A subclass of OnedimMetropolisStepper taking discrete Normal proposals
 
 var discrete_normal_proposal = function(param_state, prop_log_scale) {
   return Math.round(rnorm(param_state , Math.exp(prop_log_scale)));
 };
 
-var IntMetropolisStepper = function(parameters, state, posterior, options) {
-  OnedimMetropolisStepper.call(this, parameters, state, posterior, options, discrete_normal_proposal);
+var IntMetropolisStepper = function(params, state, log_post, options) {
+  OnedimMetropolisStepper.call(this, params, state, log_post, options, discrete_normal_proposal);
 };
 
 IntMetropolisStepper.prototype = Object.create(OnedimMetropolisStepper.prototype); 
@@ -431,48 +440,51 @@ IntMetropolisStepper.prototype.constructor = IntMetropolisStepper;
 
 ////////// MultidimAdaptiveMetropolisStepper //////////
 
-var MultidimComponentMetropolisStepper = function(parameters, state, posterior, options, SubSampler) {
-  Stepper.call(this, parameters, state, posterior);
+// subparams should probabily be called subparams and should have dim be set correctly
+
+var MultidimComponentMetropolisStepper = function(params, state, log_post, options, SubStepper) {
+  Stepper.call(this, params, state, log_post);
   
-  var param_names = Object.keys(this.parameters);
-  if(param_names.length  == 1) {
-    this.param_name = param_names[0];
-    var parameter = this.parameters[this.param_name];
-    this.lower = parameter.lower;
-    this.upper = parameter.upper;
-    this.dim = parameter.dim;
-  } else {
+  var param_names = Object.keys(this.params);
+  if(param_names.length  != 1) {
     throw "MultidimComponentMetropolisStepper can't handle more than one parameter.";
   }
-  
+  this.param_name = param_names[0];
+  var param = this.params[this.param_name];
+  this.lower = param.lower;
+  this.upper = param.upper;
+  this.dim = param.dim;
+
   this.prop_log_scale     = get_multidim_option("prop_log_scale", options, this.dim, 0);
   this.batch_size         = get_multidim_option("batch_size", options, this.dim, 50);
   this.max_adaptation     = get_multidim_option("max_adaptation", options, this.dim, 0.01);
   this.target_accept_rate = get_multidim_option("target_accept_rate", options, this.dim, 0.44);
   this.is_adapting        = get_multidim_option("is_adapting", options, this.dim, true);
   
-  var create_subsamplers = 
-    function(dim, substate, posterior, prop_log_scale, batch_size, max_adaptation, target_accept_rate, is_adapting) {
-    var subsamplers = [];
+  var create_substeppers = 
+    function(dim, substate, log_post, prop_log_scale, batch_size, max_adaptation, target_accept_rate, is_adapting) {
+    var substeppers = [];
     if(dim.length === 1) {
       for(var i = 0; i < dim[0]; i++) {
         var suboptions = {prop_log_scale: prop_log_scale[i], batch_size: batch_size[i],
           max_adaptation: max_adaptation[i], target_accept_rate: target_accept_rate[i],
           is_adapting: is_adapting[i]};
-          var subparameters = {};
-          subparameters[i] = parameter;
-        subsamplers[i] = new SubSampler(subparameters, substate, posterior, suboptions);
+          var subparam = {};
+          subparam[i] = deep_clone(param);
+          subparam[i].dim = [1]; // As this should now be a one-dim parameter
+          delete subparam[i].init; // As it sould not be needed
+        substeppers[i] = new SubStepper(subparam, substate, log_post, suboptions);
       }
     } else {
       for(var i = 0; i < dim[0]; i++) {
-        subsamplers[i] = create_subsamplers(dim.slice(1), substate[i], posterior, prop_log_scale[i], 
+        substeppers[i] = create_substeppers(dim.slice(1), substate[i], log_post, prop_log_scale[i], 
           batch_size[i], max_adaptation[i], target_accept_rate[i], is_adapting[i]);
       }
     }
-    return subsamplers;
+    return substeppers;
   };
   
-  this.subsamplers = create_subsamplers(this.dim, this.state[this.param_name], this.posterior,
+  this.substeppers = create_substeppers(this.dim, this.state[this.param_name], this.log_post,
     this.prop_log_scale, this.batch_size, this.max_adaptation, this.target_accept_rate, 
     this.is_adapting);
   
@@ -482,28 +494,28 @@ MultidimComponentMetropolisStepper.prototype = Object.create(Stepper.prototype);
 MultidimComponentMetropolisStepper.prototype.constructor = MultidimComponentMetropolisStepper;
 
 MultidimComponentMetropolisStepper.prototype.step = function() {
-  // Go through the subsamplers in a random order and call step() on them.
-  return nested_array_random_apply(this.subsamplers, function(subsampler) {return subsampler.step(); });
+  // Go through the substeppers in a random order and call step() on them.
+  return nested_array_random_apply(this.substeppers, function(substepper) {return substepper.step(); });
 };
 
 MultidimComponentMetropolisStepper.prototype.start_adaptation = function() {
-  nested_array_apply(this.subsamplers, function(subsampler) {subsampler.start_adaptation(); });
+  nested_array_apply(this.substeppers, function(substepper) {substepper.start_adaptation(); });
 };
 
 MultidimComponentMetropolisStepper.prototype.stop_adaptation = function() {
-  nested_array_apply(this.subsamplers, function(subsampler) {subsampler.stop_adaptation(); });
+  nested_array_apply(this.substeppers, function(substepper) {substepper.stop_adaptation(); });
 };
 
 MultidimComponentMetropolisStepper.prototype.info = function() {
-  return nested_array_apply(this.subsamplers, function(subsampler) {
-    return subsampler.info(); 
+  return nested_array_apply(this.substeppers, function(substepper) {
+    return substepper.info(); 
   });
 };
 
 ////////// MultiRealComponentMetropolisStepper //////////
 
-var MultiRealComponentMetropolisStepper = function(parameters, state, posterior, options) {
-  MultidimComponentMetropolisStepper.call(this, parameters, state, posterior, options, RealMetropolisStepper);
+var MultiRealComponentMetropolisStepper = function(params, state, log_post, options) {
+  MultidimComponentMetropolisStepper.call(this, params, state, log_post, options, RealMetropolisStepper);
 };
 
 MultiRealComponentMetropolisStepper.prototype = Object.create(MultidimComponentMetropolisStepper.prototype); 
@@ -511,8 +523,8 @@ MultiRealComponentMetropolisStepper.prototype.constructor = MultiRealComponentMe
 
 ////////// MultiIntComponentMetropolisStepper //////////
 
-var MultiIntComponentMetropolisStepper = function(parameters, state, posterior, options) {
-  MultidimComponentMetropolisStepper.call(this, parameters, state, posterior, options, IntMetropolisStepper);
+var MultiIntComponentMetropolisStepper = function(params, state, log_post, options) {
+  MultidimComponentMetropolisStepper.call(this, params, state, log_post, options, IntMetropolisStepper);
 };
 
 MultiIntComponentMetropolisStepper.prototype = Object.create(MultidimComponentMetropolisStepper.prototype); 
@@ -520,9 +532,9 @@ MultiIntComponentMetropolisStepper.prototype.constructor = MultiIntComponentMetr
 
 ////////// BinaryStepper //////////
 
-var BinaryStepper = function(parameters, state, posterior, options) {
-  Stepper.call(this, parameters, state, posterior);
-  var param_names = Object.keys(this.parameters);
+var BinaryStepper = function(params, state, log_post, options) {
+  Stepper.call(this, params, state, log_post);
+  var param_names = Object.keys(this.params);
   if(param_names.length  == 1) {
     this.param_name = param_names[0];
   } else {
@@ -535,9 +547,9 @@ BinaryStepper.prototype.constructor = BinaryStepper;
 
 BinaryStepper.prototype.step = function() {
   this.state[this.param_name] = 0;
-  var zero_log_dens = this.posterior();
+  var zero_log_dens = this.log_post();
   this.state[this.param_name] = 1;
-  var one_log_dens = this.posterior();
+  var one_log_dens = this.log_post();
   var max_log_dens = Math.max(zero_log_dens, one_log_dens);
   zero_log_dens -= max_log_dens;
   one_log_dens -= max_log_dens;
@@ -551,56 +563,56 @@ BinaryStepper.prototype.step = function() {
 
 ////////// BinaryComponentStepper //////////
 
-var BinaryComponentStepper = function(parameters, state, posterior, options) {
-  Stepper.call(this, parameters, state, posterior);
+var BinaryComponentStepper = function(params, state, log_post, options) {
+  Stepper.call(this, params, state, log_post);
   
-  var param_names = Object.keys(this.parameters);
+  var param_names = Object.keys(this.params);
   if(param_names.length  == 1) {
     this.param_name = param_names[0];
-    var parameter = this.parameters[this.param_name];
-    this.dim = parameter.dim;
+    var param = this.params[this.param_name];
+    this.dim = param.dim;
   } else {
     throw "BinaryComponentStepper can't handle more than one parameter.";
   }
   
-  var create_subsamplers = 
-    function(dim, substate, posterior) {
-    var subsamplers = [];
+  var create_substeppers = 
+    function(dim, substate, log_post) {
+    var substeppers = [];
     var i;
     if(dim.length === 1) {
       for(i = 0; i < dim[0]; i++) {
-        var subparameters = {};
-        subparameters[i] = parameter;
-        subsamplers[i] = new BinaryStepper(subparameters, substate, posterior);
+        var subparams = {};
+        subparams[i] = param;
+        substeppers[i] = new BinaryStepper(subparams, substate, log_post);
       }
     } else {
       for(i = 0; i < dim[0]; i++) {
-        subsamplers[i] = create_subsamplers(dim.slice(1), substate[i], posterior);
+        substeppers[i] = create_substeppers(dim.slice(1), substate[i], log_post);
       }
     }
-    return subsamplers;
+    return substeppers;
   };
   
-  this.subsamplers = create_subsamplers(this.dim, this.state[this.param_name], this.posterior);
+  this.substeppers = create_substeppers(this.dim, this.state[this.param_name], this.log_post);
 };
 
 BinaryComponentStepper.prototype = Object.create(Stepper.prototype); 
 BinaryComponentStepper.prototype.constructor = BinaryComponentStepper;
 
 BinaryComponentStepper.prototype.step = function() {
-  // Go through the subsamplers in a random order and call step() on them.
-  return nested_array_random_apply(this.subsamplers, function(subsampler) {return subsampler.step(); });
+  // Go through the substeppers in a random order and call step() on them.
+  return nested_array_random_apply(this.substeppers, function(substepper) {return substepper.step(); });
 };
 
 ////////// AmwgStepper (Adaptive Metropolis With Gibbs) //////////
 
-var AmwgStepper = function(parameters, state, posterior, options) {
-  Stepper.call(this, parameters, state, posterior);
-  this.param_names = Object.keys(this.parameters);
-  this.subsamplers = [];
-  this.sampler_indices = [];
+var AmwgStepper = function(params, state, log_post, options) {
+  Stepper.call(this, params, state, log_post);
+  this.param_names = Object.keys(this.params);
+  this.substeppers = [];
+  this.stepper_indices = [];
   for(var i = 0; i < this.param_names.length; i++) {
-    var param = parameters[this.param_names[i]];
+    var param = params[this.param_names[i]];
     var SelectStepper;
     switch (param.type) {
       case "real":
@@ -629,9 +641,9 @@ var AmwgStepper = function(parameters, state, posterior, options) {
     }
     var param_object_wrap = {};
     param_object_wrap[this.param_names[i]] = param;
-    var param_options = options && options.parameters && options.parameters[this.param_names[i]];
-    this.subsamplers[i] = new SelectStepper(param_object_wrap, state, posterior, param_options);
-    this.sampler_indices[i] = i;
+    var param_options = options && options.params && options.params[this.param_names[i]];
+    this.substeppers[i] = new SelectStepper(param_object_wrap, state, log_post, param_options);
+    this.stepper_indices[i] = i;
   }
 };
 
@@ -639,29 +651,29 @@ AmwgStepper.prototype = Object.create(Stepper.prototype);
 AmwgStepper.prototype.constructor = AmwgStepper;
 
 AmwgStepper.prototype.step = function() {
-  shuffle_array(this.sampler_indices);
-  for(var i = 0; i < this.sampler_indices.length; i++) {
-    this.subsamplers[this.sampler_indices[i]].step();
+  shuffle_array(this.stepper_indices);
+  for(var i = 0; i < this.stepper_indices.length; i++) {
+    this.substeppers[this.stepper_indices[i]].step();
   }
   return this.state;
 };
 
 AmwgStepper.prototype.start_adaptation = function() {
-  for(var i = 0; i < this.subsamplers.length; i++) {
-    this.subsamplers[i].start_adaptation();
+  for(var i = 0; i < this.substeppers.length; i++) {
+    this.substeppers[i].start_adaptation();
   }
 };
 
 AmwgStepper.prototype.stop_adaptation = function() {
-  for(var i = 0; i < this.subsamplers.length; i++) {
-    this.subsamplers[i].stop_adaptation();
+  for(var i = 0; i < this.substeppers.length; i++) {
+    this.substeppers[i].stop_adaptation();
   } 
 };
 
 AmwgStepper.prototype.info = function() {
   var info = {};
-  for(var i = 0; i < this.subsamplers.length; i++) {
-    info[this.param_names[i]] = this.subsamplers[i].info();
+  for(var i = 0; i < this.substeppers.length; i++) {
+    info[this.param_names[i]] = this.substeppers[i].info();
   }
   return info;
 };
@@ -673,10 +685,10 @@ AmwgStepper.prototype.info = function() {
 // Sampler is a convenience class where an instance of Sampler
 // sets up the steppers, checks the parameter definition,
 // and manages the sampling.
-var Sampler = function(parameters, posterior, data, options) {
-  this.parameters = parameters;
+var Sampler = function(params, log_post, data, options) {
+  this.params = params;
   this.data = data;
-  this.param_names = Object.keys(this.parameters);
+  this.param_names = Object.keys(this.params);
   
   
   // Setting default options if not passed through the options object
@@ -685,14 +697,14 @@ var Sampler = function(parameters, posterior, data, options) {
   var params_to_monitor = get_option("monitor", options, null);
   this.thin(thinning_interval);
   this.monitor(params_to_monitor);
-  // Completing the parameters and initializing the state.
-  this.parameters = complete_params(this.parameters, this.param_init_fun);
+  // Completing the params and initializing the state.
+  this.params = complete_params(this.params, this.param_init_fun);
   var state = {};
   for(var i = 0; i < this.param_names.length; i++ ) {
-    state[this.param_names[i]] = this.parameters[this.param_names[i]].init;
+    state[this.param_names[i]] = this.params[this.param_names[i]].init;
   }
-  this.posterior = function() { 
-    return posterior(state, data);
+  this.log_post = function() { 
+    return log_post(state, data);
   };
   this.state = state;
   this.steppers = this.create_stepper_ensamble();
@@ -700,7 +712,7 @@ var Sampler = function(parameters, posterior, data, options) {
 
 // Creates an vector of steppers that when called 
 // should take a step in the parameterspace.
-Sampler.prototype.create_stepper_ensamble = function(state, posterior){
+Sampler.prototype.create_stepper_ensamble = function(state, log_post){
   throw "Every Sampler needs to implement create_stepper_ensamble()";
 };
 
@@ -773,135 +785,13 @@ Sampler.prototype.stop_adaptation = function() {
 
 ////////// AmwgSampler /////////
 
-var AmwgSampler = function(parameters, posterior, data,options) {
-  Sampler.call(this, parameters, posterior, data, options);
+var AmwgSampler = function(params, log_post, data,options) {
+  Sampler.call(this, params, log_post, data, options);
 };
 
 AmwgSampler.prototype = Object.create(Sampler.prototype); 
 AmwgSampler.prototype.constructor = AmwgSampler;
 
 AmwgSampler.prototype.create_stepper_ensamble = function(){
-  return [ new AmwgStepper(this.parameters, this.state, this.posterior) ];
+  return [ new AmwgStepper(this.params, this.state, this.log_post) ];
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-
-// TODO, gör den här vad jag vill att den ska göra?
-var populate_param_object = function(params, value_fun) {
-  var property = {};
-  for (var param_name in params) { if (!params.hasOwnProperty(param_name)) continue;
-    if( array_equal(param.dim, [1]) ) {
-      property[param_name] = value_fun(params, param_name);
-    } else { 
-      property[param_name] = create_array(param.dim, value_fun(params, param_name));
-    }
-  }
-  return property;
-};
-
-// Checks a model definition and throws informative errors
-// when things seem off.
-var check_model = function(model) {
-  //TODO
-  // A model is an object that contain the following obligatory objects:
-  // "posterior": A function that returns the non-normalized log posterior
-  //   density. The first argument is an object with parameter values like
-  //   {"mu": 2.3, "sigma": 1.2}. The second argument is an (optional)
-  //   data object.
-  // "parameters": An object with parameter definitions. 
-  // In addition, the model can include the following optional objects:
-  // "data": Any type of object that, if it exists, will be passed in
-  //   as the second argument to posterior.
-  // "options": An object with options for the sampling algorithm.
-};
-
-var amwg_plus = function(parameter_definitions, posterior, data, options) {
-  var params = deep_clone(parameter_definitions);
-  var batch_size = get_option("batch_size", options, 50);
-  var max_adaptation = get_option("max_adaptation", options, 0.01);
-  var target_accept_rate = get_option("target_accept_rate", options, 0.44);
-  
-  
-  
-  
-  
-  var default_prop_log_scale = 0.0;
-  var prop_log_scale = get_option("prop_log_scale", options, default_prop_log_scale);
-  for (var param_name in params) { if (!params.hasOwnProperty(param_name)) continue;
-    var param = params[param_name];
-    if(is_number(prop_log_scale)) {
-      param.prop_log_scale
-    }
-    param.prop_log_scale = get_option("prop_log_scale", choosen_prop_log_scale, 0);
-        
-  };
-  
-  
-  ///// TODO funkar inte. smartare sätta att skicka in optdefault_prop_log_scaleions? Generellt sätt..?
-  if(is_number(choosen_prop_log_scale)) {
-    var prop_log_scale =  populate_param_object(params, function() { return choosen_prop_log_scale; } );
-  } else {
-    var prop_log_scale =  populate_param_object(params, function(params, param_name) {
-      if(choosen_prop_log_scale.hasOwnProperty(param_name)) {
-        return choosen_prop_log_scale[param_name];
-      } else {
-        return default_prop_log_scale;
-      }
-    });
-  }
-    
-    param.acceptance_count = 
-  }
-
-  
-  var is_adapting        = get_option("is_adapting", options, true);
-  
-  var acceptance_count = 0;
-  var batch_count = 0;
-  var iterations_since_adaption = 0;
-};
-
-*/
-
-/*
-
-var state = {mu:0};
-var a = real_adaptive_metropolis_sampler("mu", -Infinity, Infinity, {batch_size : 5})
-state.mu = a.next(state, function(par) { return Math.log(Math.random()) })
-
-param = "mu"
-lower = -Infinity
-upper = Infinity
-state = {mu: 1}
-a.next("mu", -Infinity, Infinity, {mu: 1}, function(par) { return Math.log(Math.random()) })
-
-params = {"mu":{"type":"real"}};
-param = params["mu"]
-JSON.stringify(complete_params(params, param_init), null, 2)
-
-js$source("amwg_plus.js")
-{"mu": { "type": "real", "dim": [1], "upper": Infinity, "lower": -Infinity, "init": [0.5], "state": [0.5] }}
-https://john-dugan.com/object-oriented-javascript-pattern-comparison/
-*/
