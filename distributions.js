@@ -2,7 +2,7 @@
 
 
 // A number of log probability density functions (PDF). Naming and parameterization
-// should match R's, except for that each fucnction starts with ld as in
+// should match R's, except for that each function starts with ld as in
 // "log density".
 // Most of the code below is directly taken from the great Jstat project
 // (https://github.com/jstat/) which includes PDF for many common probaility
@@ -125,14 +125,15 @@ var ldt  =  function(x, mu, sigma, nu) {
          log(pow(1 + (1/nu) * pow((x - mu)/sigma, 2), -(nu + 1)/2));
 };
 
-// This doesn't give the same answers as the R version dweibull,
-// for example, when x = 0.0
+// Commented out for now as this doesn't give the same answers 
+// as the R version dweibull, for example, when x = 0.0 .
+/*
 var ldweibull = function(x, shape, scale) {
   if (x < 0)
     return -Infinity;
   return log(shape) - log(scale) + (shape - 1) * log((x / scale)) - pow(x / scale, shape);
 };
-
+*/
   
 var ldexp = function(x, rate) {
     return x < 0 ? -Infinity : log(rate) -rate * x;
