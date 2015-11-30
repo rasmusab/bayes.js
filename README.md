@@ -20,7 +20,7 @@ The four arguments to `AmwgSampler` are:
 ```
 var params = {
   mu:    {type: "real", dim: [ 1 ], lower: -Infinity, upper: Infinity, init: 0.5 }, 
-  sigma: {type: real  , dim: [ 1 ], lower: 0,         upper: Infinity, init: 0.5 }};
+  sigma: {type: "real", dim: [ 1 ], lower: 0,         upper: Infinity, init: 0.5 }};
 ```
 
 Not all parameter properties need to be filled in and when left out will be replaced by defaults, for example, the following will result in the same parameter definition as above: `var params = {mu: {}, sigma: {lower:0}}`. Possible `type`s are `real`, `int` and `binary`. `dim` sets the dimension of the parameter, for examples, `dim: [5]` would define a five element vector, while `dim: [5, 5, 5]` would define 5x5x5 3d array. 
