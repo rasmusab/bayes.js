@@ -37,16 +37,16 @@ j$source("test_data.js")
 #j$source("mcmc.js"); j$source("distributions.js"); j$source("tests/test_data.js")
 
 test_that("parameter completion works", {
-  params1 <- sort_list_by_names(j$get( "complete_params(params1, param_init_fixed)" ))
+  params1 <- sort_list_by_names(j$get( "mcmc.complete_params(params1, mcmc.param_init_fixed)" ))
   params1_completed <- sort_list_by_names(j$get( "params1_completed" ))
   expect_identical(params1, params1_completed)
-  params2 <- sort_list_by_names(j$get( "complete_params(params2, param_init_fixed)" ))
+  params2 <- sort_list_by_names(j$get( "mcmc.complete_params(params2, mcmc.param_init_fixed)" ))
   params2_completed <- sort_list_by_names(j$get( "params2_completed" ))
   expect_identical(params2, params2_completed)
 })
 
 test_that("the js version of rnorm works (this might fail occationally as it is random)", {
-  norm_sample <- j$get("replicate(4500, function()  {return rnorm(10, 5)} )")
+  norm_sample <- j$get("replicate(4500, function()  {return mcmc.rnorm(10, 5)} )")
   expect_more_than(shapiro.test(norm_sample)$p.val, 0.01)
   expect_more_than(t.test(norm_sample, mu = 10)$p.val, 0.01)
   expect_more_than(var.test(norm_sample, rnorm(9999, 10, 5))$p.val, 0.01)
@@ -56,7 +56,7 @@ test_that("RealMetropolisStepper works", {
   j$eval("var state = {x: 0}")
   j$eval("var posterior = function() { return norm_dens(state)};")
   j$eval("var parameters = {x: {lower: -Infinity, upper: Infinity, dim:[1]}};")
-  j$eval("var stepper = new RealMetropolisStepper(parameters, state, posterior)")
+  j$eval("var stepper = new mcmc.RealMetropolisStepper(parameters, state, posterior)")
   norm_samples = j$get("replicate(10000, function()  {return stepper.step()} )")
   norm_samples = norm_samples[sample(1:10000, 1000)]
   expect_more_than(shapiro.test(norm_sample)$p.val, 0.01)
@@ -68,7 +68,7 @@ test_that("IntMetropolisStepper works", {
   j$eval("var state = {x: 1}")
   j$eval("var posterior = function() { return poisson_dens(state)};")
   j$eval("var parameters = {x: {lower: 0, upper: Infinity, dim:[1]}};")
-  j$eval("var stepper = new IntMetropolisStepper(parameters, state, posterior)")
+  j$eval("var stepper = new mcmc.IntMetropolisStepper(parameters, state, posterior)")
   poisson_samples = j$get("replicate(10000, function()  {return stepper.step()} )")
   poisson_samples = poisson_samples[sample(1:10000, 1000)]
   expect_more_than(poisson.test(sum(poisson_samples), length(poisson_samples) * 10)$p.val, 0.01)
@@ -85,7 +85,7 @@ test_that("MultiRealComponentMetropolisStepper works", {
   j$eval("var posterior = function() { return multivar_norm_dens(state)};")
   j$eval("var options = {max_adaptation: 0.2, prop_log_scale: [[10,0],[-10, 5]]};")
   j$eval("var parameters = {x: {lower: -Infinity, upper: Infinity, dim: [2, 2]}};")
-  j$eval("var stepper = new MultiRealComponentMetropolisStepper(parameters, state, posterior, options)")
+  j$eval("var stepper = new mcmc.MultiRealComponentMetropolisStepper(parameters, state, posterior, options)")
   norm_samples = j$get("replicate(100, function()  {return stepper.step()} )")
   j$eval("stepper.stop_adaptation()")
   norm_samples = j$get("replicate(100, function()  {return stepper.step()} )")
@@ -103,7 +103,7 @@ test_that("MultiIntComponentMetropolisStepper works", {
   j$eval("var posterior = function() { return multivar_poisson_dens(state)};")
   j$eval("var options = {batch_size: 10, target_accept_rate: [[0.22, 0.22],[0.75, 0.10]], prop_log_scale: [[1,10],[30, 1]]};")
   j$eval("var parameters = {x: {lower: 0, upper: Infinity, dim: [2, 2]}};")
-  j$eval("var stepper = new MultiIntComponentMetropolisStepper(parameters, state, posterior, options)")
+  j$eval("var stepper = new mcmc.MultiIntComponentMetropolisStepper(parameters, state, posterior, options)")
   pois_samples = j$get("replicate(100, function()  {return stepper.step()} )")
   j$eval("stepper.stop_adaptation()")
   pois_samples = j$get("replicate(100, function()  {return stepper.step()} )")
@@ -124,7 +124,7 @@ test_that("BinaryStepper works", {
   j$eval("var state = {x: 0}")
   j$eval("var posterior = function() { return bern_dens(state)};")
   j$eval("var parameters = {x: {type: 'binary'}};")
-  j$eval("var stepper = new BinaryStepper(parameters, state, posterior)")
+  j$eval("var stepper = new mcmc.BinaryStepper(parameters, state, posterior)")
   bern_samples = j$get("replicate(1000, function()  {return stepper.step()} )")
   expect_more_than(binom.test(sum(bern_samples), length(bern_samples), p = 0.85)$p.val, 0.01)
 })
@@ -133,7 +133,7 @@ test_that("BinaryComponentStepper works", {
   j$eval("var state = {x: [[0, 0], [0, 0]]}")
   j$eval("var posterior = function() { return multi_bern_dens(state)};")
   j$eval("var parameters = {x: {type: 'binary', dim: [2,2]} } ;")
-  j$eval("var stepper = new BinaryComponentStepper(parameters, state, posterior)")
+  j$eval("var stepper = new mcmc.BinaryComponentStepper(parameters, state, posterior)")
   bern_samples = j$get("replicate(1000, function()  {return stepper.step()} )")
   expected_freq_x1 <- (0.85 + 0.15) / (0.85 + 0.15 + 0.15 + 0.15)
   expected_freq_x4 <- (0.75 + 0.25) / (0.75 + 0.25 + 0.25 + 0.25)
@@ -172,12 +172,12 @@ jags_complex_samples <- coda.samples(jags_complex_model, variable.names = c("m",
 jags_complex_samples <- as.matrix(jags_complex_samples)
 
 test_that("AmwgtStepper works on Normal model", {
-  j$eval("var pars = complete_params(params1, param_init_fixed)" )
+  j$eval("var pars = mcmc.complete_params(params1, mcmc.param_init_fixed)" )
   j$eval("var state = {mu: pars.mu.init, sigma: pars.sigma.init}")
   # round(rnorm(10, 100, 50))
   j$eval("var norm_data = [100, 62, 96, 122, 141, 144, 74, 73, 78, 128];")
   j$eval("var posterior = function() { return norm_post(state, norm_data)};")
-  j$eval("var stepper = new AmwgStepper(pars, state, posterior)")
+  j$eval("var stepper = new mcmc.AmwgStepper(pars, state, posterior)")
   norm_post_samples = j$get("replicate(10000, function() {stepper.step(); return [state.mu, state.sigma];})")
   norm_post_samples = j$get("replicate(10000, function() {stepper.step(); return [state.mu, state.sigma];})")
   norm_post_samples = norm_post_samples[sample(1:nrow(norm_post_samples), 1000),]
@@ -189,11 +189,11 @@ test_that("AmwgtStepper works on Normal model", {
 
 test_that("AmwgtStepper works on complex model", {
 
-  j$eval("var pars = complete_params(params_complex_model, param_init_fixed)" )
+  j$eval("var pars = mcmc.complete_params(params_complex_model, mcmc.param_init_fixed)" )
   j$eval("var state = {m: pars.m.init, p1: pars.p1.init, n1: pars.n1.init}")
   j$eval("var nbinom_data = [9, 8, 32, 14, 10, 18, 15, 16, 15, 19];")
   j$eval("var posterior = function() { return complex_model_post(state, nbinom_data)};")
-  j$eval("var stepper = new AmwgStepper(pars, state, posterior)")
+  j$eval("var stepper = new mcmc.AmwgStepper(pars, state, posterior)")
   post_samples = j$get("replicate(10000, function() {stepper.step(); return [state.m, state.n1, state.p1];})")
   post_samples = j$get("replicate(30000, function() {stepper.step(); return [state.m, state.n1, state.p1];})")
   post_samples <- post_samples[sample(1:nrow(post_samples), 1000),]
@@ -208,7 +208,7 @@ test_that("AmwgtStepper works on complex model", {
 
 test_that("AmwgSampler works on Normal model", {
   j$eval("var norm_data = [100, 62, 96, 122, 141, 144, 74, 73, 78, 128];")
-  j$eval("var sampler =  new AmwgSampler(params1, norm_post, norm_data);")
+  j$eval("var sampler =  new mcmc.AmwgSampler(params1, norm_post, norm_data);")
   norm_post_samples = j$get("sampler.burn(10000)")
   norm_post_samples = as.data.frame(j$get("sampler.sample(10000)"))
   norm_post_samples = norm_post_samples[sample(1:nrow(norm_post_samples), 1000),]
@@ -220,7 +220,7 @@ test_that("AmwgSampler works on Normal model", {
 
 test_that("AmwgSampler works on complex model", {
   j$eval("var nbinom_data = [9, 8, 32, 14, 10, 18, 15, 16, 15, 19];")
-  j$eval("var sampler =  new AmwgSampler(params_complex_model, complex_model_post, nbinom_data);")
+  j$eval("var sampler =  new mcmc.AmwgSampler(params_complex_model, complex_model_post, nbinom_data);")
   j$eval("sampler.burn(10000)")
   post_samples = as.data.frame(j$get("sampler.sample(30000)"))
   post_samples <- post_samples[sample(1:nrow(post_samples), 1000),]
