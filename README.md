@@ -23,7 +23,7 @@ var params = {
   sigma: {type: "real", dim: [ 1 ], lower: 0,         upper: Infinity, init: 0.5 }};
 ```
 
-Not all parameter properties need to be filled in and when left out will be replaced by defaults, for example, the following will result in the same parameter definition as above: `var params = {mu: {}, sigma: {lower:0}}`. Possible `type`s are `real`, `int` and `binary`. `dim` sets the dimension of the parameter, for examples, `dim: [5]` would define a five element vector, while `dim: [5, 5, 5]` would define 5x5x5 3d array. 
+Not all parameter properties need to be filled in and when left out will be replaced by defaults, for example, the following will result in the same parameter definition as above: `var params = {mu: {}, sigma: {lower:0}}`. Possible `type`s are `real`, `int` and `binary`. `dim` sets the dimension of the parameter, for examples, `dim: [5]` would define a five element vector, while `dim: [5, 5, 5]` would define a 5x5x5 3d array. 
 
 **`log_post`**: A function were the first argument is the state of the parameters and the second is an optional data argument. The function should return a number proportional to the log posterior. The state will be an object according to the parameter definition, for example, the parameter definition above would result in the state object `{mu: 0.5, sigma: 0.5}` (but the numbers would, of course, differ). Scalar parameters (that is, `dim: [1]`) are represented as numbers, while multidimensional parameter are represented as (possibly nested) arrays. 
 
@@ -53,8 +53,6 @@ var norm_post = function(par, data) {
   }
   return log_post;
 };
-
-// Below is just the code to run the sampler
 
 // Initializing the sampler
 var sampler =  new AmwgSampler(params, norm_post, data);
