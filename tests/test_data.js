@@ -80,16 +80,16 @@ var norm_post = function(par, data) {
   var mu = par.mu;
   var sigma = par.sigma;
   var log_post = 0;
-  log_post += ldnorm(mu, 0, 100);
-  log_post += ldunif(sigma, 0, 100);
+  log_post += ld.norm(mu, 0, 100);
+  log_post += ld.unif(sigma, 0, 100);
   for(var i = 0; i < data.length; i++) {
-    log_post += ldnorm(data[i], mu, sigma);
+    log_post += ld.norm(data[i], mu, sigma);
   }
   return log_post;
 };
 
 var norm_dens = function(par) {
-  return ldnorm(par.x, 10, 5);
+  return ld.norm(par.x, 10, 5);
 };
 
 var multivar_norm_dens = function(par) {
@@ -97,15 +97,15 @@ var multivar_norm_dens = function(par) {
   x2 = par.x[0][1];
   x3 = par.x[1][0];
   x4 = par.x[1][1];
-  var log_post = ldnorm(x1, 1000, 50) + 
-              ldnorm(x2, 10, 5) + 
-              ldnorm(x3, 0.1, 0.5) + 
-              ldnorm(x4, 0.001, 0.05);
+  var log_post = ld.norm(x1, 1000, 50) + 
+              ld.norm(x2, 10, 5) + 
+              ld.norm(x3, 0.1, 0.5) + 
+              ld.norm(x4, 0.001, 0.05);
   return log_post;
 };
 
 var poisson_dens = function(par) {
-  return ldpois(par.x, 10);
+  return ld.pois(par.x, 10);
 };
 
 var multivar_poisson_dens = function(par) {
@@ -113,15 +113,15 @@ var multivar_poisson_dens = function(par) {
   x2 = par.x[0][1];
   x3 = par.x[1][0];
   x4 = par.x[1][1];
-  var log_post = ldpois(x1, 0.1) + 
-              ldpois(x2, 10) + 
-              ldpois(x3, 1000) + 
-              ldpois(x4, 100000);
+  var log_post = ld.pois(x1, 0.1) + 
+              ld.pois(x2, 10) + 
+              ld.pois(x3, 1000) + 
+              ld.pois(x4, 100000);
   return log_post;
 };
 
 var bern_dens = function(par) {
-  return ldbern(par.x, 0.85);
+  return ld.bern(par.x, 0.85);
 };
 
 var multi_bern_dens = function(par) {
@@ -154,14 +154,14 @@ var complex_model_post = function(par, x) {
   var n1 = par.n1;
   var m = par.m;
   var log_post = 0;
-  log_post += ldbern(m, 0.4);
-  log_post += ldbeta(p1, 2, 2);
-  log_post += ldnbinom(n1, 2, 0.1);
+  log_post += ld.bern(m, 0.4);
+  log_post += ld.beta(p1, 2, 2);
+  log_post += ld.nbinom(n1, 2, 0.1);
   for(var i = 0; i < x.length; i++) {
     if(m === 0) {
-      log_post += ldnbinom(x[i], 21, 0.5);
+      log_post += ld.nbinom(x[i], 21, 0.5);
     } else {
-      log_post += ldnbinom(x[i], n1, p1);
+      log_post += ld.nbinom(x[i], n1, p1);
       
     }
   }
