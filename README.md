@@ -2,14 +2,14 @@
 
 A small toy javascript MCMC framework that can be used fit Bayesian models in the browser. The two major files are:
 
-* __mcmc.js__ Implements a MCMC framework which can be used to fit Bayesian model with both discrete and continuous parameters. Currently the only algorithm that is implemented is a version of the *adaptive Metropolis within Gibbs* algorithm presented by [Roberts and Rosenthal (2009) ](http://probability.ca/jeff/ftpdir/adaptex.pdf)
-* __distributions.js__ A collection of log density functions that can be used to construct Bayesian models. Follows the naming scheme `ld*` (for example, `ldnorm` and `ldpois`) and uses the same parameters as the `d*` density function in R.
+* __mcmc.js__ Implements a MCMC framework which can be used to fit Bayesian model with both discrete and continuous parameters. Currently the only algorithm that is implemented is a version of the *adaptive Metropolis within Gibbs* algorithm presented by [Roberts and Rosenthal (2009) ](http://probability.ca/jeff/ftpdir/adaptex.pdf). Importing this file creates the global object `mcmc`.
+* __distributions.js__ A collection of log density functions that can be used to construct Bayesian models. Follows the naming scheme `ld.*` (for example, `ld.norm` and `ld.pois`) and uses the same parameters as the `d*` density function in R. Importing this file creates the global object `ld`.
 
-Currently these two files just pollutes the global name space, which should probably be changed... In addition to this the whole thing is wrapped within an [Rstudio](https://www.rstudio.com/) project as I've use R and JAGS to write some tests.
+In addition to this the whole thing is wrapped within an [Rstudio](https://www.rstudio.com/) project as I've use R and JAGS to write some tests.
 
 In __mcmc.js__ the currently sole sampler is `AmwgSampler`. Here is how to make an instance of `AmwgSampler` and to produce a number of samples:
 ```
-var sampler =  new AmwgSampler(params, norm_post, data);
+var sampler =  new mcmc.AmwgSampler(params, norm_post, data);
 var samples = sampler.sample(1000)
 ```
 
@@ -45,17 +45,17 @@ var params = {
 var norm_post = function(par, data) {
   var log_post = 0;
   // Priors
-  log_post += ldnorm(par.mu, 0, 100);
-  log_post += ldunif(par.sigma, 0, 100);
+  log_post += ld.norm(par.mu, 0, 100);
+  log_post += ld.unif(par.sigma, 0, 100);
   // Likelihood
   for(var i = 0; i < data.length; i++) {
-    log_post += ldnorm(data[i], par.mu, par.sigma);
+    log_post += ld.norm(data[i], par.mu, par.sigma);
   }
   return log_post;
 };
 
 // Initializing the sampler
-var sampler =  new AmwgSampler(params, norm_post, data);
+var sampler =  new mcmc.AmwgSampler(params, norm_post, data);
 // Burning some samples to the MCMC gods, 
 sampler.burn(1000)
 var samples = sampler.sample(10000)
