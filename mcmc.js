@@ -261,15 +261,26 @@ var mcmc = (function(){
       if(!param.hasOwnProperty("lower")) {
         param.lower = -Infinity;
       }
-      if(!param.hasOwnProperty("init")) {
+      
+      if(param.hasOwnProperty("init")) {
+        // If this is just a number or a nested array we leave it alone, but if...
+        if(array_equal(param.dim, [1]) && typeof param.init === "function") {
+          // param.init is a function, use that to initialize the parameter.
+          param.init = param.init();
+        } else if(!array_equal(param.dim, [1]) && !Array.isArray(param.init)) {
+        // We have a multidimensional parameter where the param.init exist but
+        // is not an array. Then assume it is a number or a function and use
+        // it to initialize the parameter.
+        param.init = create_array(param.dim, param.init);
+        }
+      } else { // We use the default initialization function.
         if(array_equal(param.dim, [1])) {
           param.init = param_init(param.type, param.lower, param.upper);
         } else {
-          param.init = 
-            create_array(param.dim, param_init(param.type, param.lower, param.upper));
+          param.init = create_array(param.dim, function() {
+            return param_init(param.type, param.lower, param.upper);
+          });
         }
-      } else if(!array_equal(param.dim, [1]) && !Array.isArray(param.init)) {
-        param.init = create_array(param.dim, param.init);
       }
     }
     return params;

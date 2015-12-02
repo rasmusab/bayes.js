@@ -35,14 +35,15 @@ var params1_completed = {
 };
 
 var params2 = {
-  "theta": {},
+  "theta": {"init": function() {return 1.5} },
   "state": {
     "type": "binary",
     "init": 1
   },
   "mat": {
     "type": "int",
-    "dim": [3, 3]
+    "dim": [3, 3],
+    "init": function() {return 2}
   }
 };
 
@@ -52,7 +53,7 @@ var params2_completed = {
     "dim": [1],
     "upper": Infinity,
     "lower": -Infinity,
-    "init": 0.5
+    "init": 1.5
   },
   "state": {
     "type": "binary",
@@ -66,9 +67,9 @@ var params2_completed = {
     "dim": [3,3],
     "upper": Infinity,
     "lower": -Infinity,
-    "init": [[1,1,1],
-             [1,1,1],
-             [1,1,1]]
+    "init": [[2,2,2],
+             [2,2,2],
+             [2,2,2]]
   }
 };
 
