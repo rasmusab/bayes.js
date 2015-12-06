@@ -1,5 +1,12 @@
 "use strict";
 
+// TODO
+// * If a log_post function returns an object it should contain the element log_post, 
+// all other elements gets added to the generated samples, this allows generated
+// quantities to be defined in the log_post function, e.g. 
+// `return {log_post: log_post, y_pred: y_pred}`
+// * Fix so that thinning works.
+
 var mcmc = (function(){
   ////////// Helper Functions //////////
   
