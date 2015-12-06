@@ -762,9 +762,11 @@ var mcmc = (function(){
       }
       
       for(i = 0; i < n_iterations; i++) {
-        for(j = 0; j < this.monitored_params.length; j++) {
-          var param = this.monitored_params[j];
-          curr_sample[param].push(this.state[param]);
+        if(i % this.thinning_interval === 0) {
+          for(j = 0; j < this.monitored_params.length; j++) {
+            var param = this.monitored_params[j];
+            curr_sample[param].push(this.state[param]);
+          }
         }
         this.step();
       }
