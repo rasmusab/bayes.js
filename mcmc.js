@@ -709,6 +709,7 @@ var mcmc = (function(){
     var params_to_monitor = get_option("monitor", options, null);
     this.thin(thinning_interval);
     this.monitor(params_to_monitor);
+    this.options = options;
     // Completing the params and initializing the state.
     this.params = complete_params(this.params, this.param_init_fun);
     var state = {};
@@ -805,7 +806,7 @@ var mcmc = (function(){
   AmwgSampler.prototype.constructor = AmwgSampler;
   
   AmwgSampler.prototype.create_stepper_ensamble = function(){
-    return [ new AmwgStepper(this.params, this.state, this.log_post) ];
+    return [ new AmwgStepper(this.params, this.state, this.log_post, this.options) ];
   };
   
   return {
