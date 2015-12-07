@@ -5,7 +5,6 @@
 // all other elements gets added to the generated samples, this allows generated
 // quantities to be defined in the log_post function, e.g. 
 // `return {log_post: log_post, y_pred: y_pred}`
-// * Fix so that thinning works.
 
 var mcmc = (function(){
   ////////// Helper Functions //////////
@@ -193,7 +192,9 @@ var mcmc = (function(){
   // var pi = get_option("pi", my_options, 3.14)
   var get_option = function(option_name, options, defaul_value) {
     options = options || {};
-    return options.hasOwnProperty(option_name) ? options[option_name] : defaul_value;
+    return options.hasOwnProperty(option_name) && 
+           options[option_name] !== undefined  && 
+           options[option_name] !== null ? options[option_name] : defaul_value;
   };
   
   // Version of get_option where the result should be a possibly mulidimensional array
@@ -660,7 +661,13 @@ var mcmc = (function(){
       }
       var param_object_wrap = {};
       param_object_wrap[this.param_names[i]] = param;
-      var param_options = options && options.params && options.params[this.param_names[i]];
+      options = options || {};
+      var param_options = options.params && options.params[this.param_names[i]] || {};
+      param_options.prop_log_scale     = param_options.prop_log_scale     || options.prop_log_scale; 
+      param_options.batch_size         = param_options.batch_size         || options.batch_size; 
+      param_options.max_adaptation     = param_options.max_adaptation     || options.max_adaptation; 
+      param_options.target_accept_rate = param_options.target_accept_rate || options.target_accept_rate; 
+      param_options.is_adapting        = param_options.is_adapting        || options.is_adapting; 
       this.substeppers[i] = new SelectStepper(param_object_wrap, state, log_post, param_options);
       this.stepper_indices[i] = i;
     }
@@ -807,7 +814,7 @@ var mcmc = (function(){
   
   ////////// AmwgSampler /////////
   
-  var AmwgSampler = function(params, log_post, data,options) {
+  var AmwgSampler = function(params, log_post, data, options) {
     Sampler.call(this, params, log_post, data, options);
   };
   
