@@ -734,7 +734,7 @@ var mcmc = (function(){
       return log_post(state, data);
     };
     this.state = state;
-    this.steppers = this.create_stepper_ensamble();
+    this.steppers = this.create_stepper_ensamble(this.params, this.state, this.log_post, this.options);
   };
   
   // Creates an vector of steppers that when called 
@@ -821,8 +821,8 @@ var mcmc = (function(){
   AmwgSampler.prototype = Object.create(Sampler.prototype); 
   AmwgSampler.prototype.constructor = AmwgSampler;
   
-  AmwgSampler.prototype.create_stepper_ensamble = function(){
-    return [ new AmwgStepper(this.params, this.state, this.log_post, this.options) ];
+  AmwgSampler.prototype.create_stepper_ensamble = function(params, state, log_post, options){
+    return [ new AmwgStepper(params, state, log_post, options) ];
   };
   
   return {

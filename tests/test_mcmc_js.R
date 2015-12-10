@@ -220,7 +220,8 @@ test_that("AmwgSampler works on Normal model", {
 
 test_that("AmwgSampler works on complex model", {
   j$eval("var nbinom_data = [9, 8, 32, 14, 10, 18, 15, 16, 15, 19];")
-  j$eval("var sampler =  new mcmc.AmwgSampler(params_complex_model, complex_model_post, nbinom_data);")
+  j$eval("var options = {max_adaptation: 0.5};")
+  j$eval("var sampler =  new mcmc.AmwgSampler(params_complex_model, complex_model_post, nbinom_data, options);")
   j$eval("sampler.burn(10000)")
   j$eval("sampler.thin(10);")
   post_samples = as.data.frame(j$get("sampler.sample(30000)"))
