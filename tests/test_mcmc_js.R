@@ -213,9 +213,11 @@ test_that("AmwgSampler works on Normal model", {
   norm_post_samples = as.data.frame(j$get("sampler.sample(10000)"))
   norm_post_samples = norm_post_samples[sample(1:nrow(norm_post_samples), 1000),]
   
+  expect_true(length(norm_post_samples$sigma) == length(norm_post_samples$var))
+  expect_true(isTRUE( all.equal(norm_post_samples$sigma^2, norm_post_samples$var) ))
   expect_more_than(cont_chisq_test(norm_post_samples$mu, jags_norm_samples[,1], no_splits = 10)$p.val, 0.01)
   expect_more_than(cont_chisq_test(norm_post_samples$sigma, jags_norm_samples[,2], no_splits = 10)$p.val, 0.01)
-  expect_more_than(cont_chisq_test(norm_post_samples, jags_norm_samples, no_splits = 5)$p.val, 0.01)
+  expect_more_than(cont_chisq_test(norm_post_samples[, 1:2], jags_norm_samples[,1:2], no_splits = 5)$p.val, 0.01)
 })
 
 test_that("AmwgSampler works on complex model", {

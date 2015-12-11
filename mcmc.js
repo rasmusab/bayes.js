@@ -733,6 +733,9 @@ var mcmc = (function(){
     this.log_post = function() { 
       return log_post(state, data);
     };
+    // Running the log_post function once in case it further modifies the state
+    // for example adding derived quantities.
+    this.log_post();
     this.state = state;
     this.steppers = this.create_stepper_ensamble(this.params, this.state, this.log_post, this.options);
   };
@@ -753,32 +756,39 @@ var mcmc = (function(){
     for(var i = 0; i < this.steppers.length; i++) {
       this.steppers[i].step();
     }
+    if(Object.keys(this.state).length > Object.keys(this.params).length) {
+      // The state contains devived quantities (not only parameters) and we
+      // need to run the log_post once more in order to set the derived quantities
+      // for the final parameter state
+      this.log_post();
+    }
   };
   
   Sampler.prototype.sample = function(n_iterations) {
-    if(this.monitored_params.length === 0) {
-      this.burn(n_iterations);
-      return {};
-    } else {
       // Initializing curr_sample where the sample is going to be saved
       // as an object containing one array per parameter to be monitored.
+      var i, j, monitored_params;
+      if(this.monitored_params === null) {
+        monitored_params = Object.keys(this.state);
+      } else {
+        monitored_params = this.monitored_params;
+      }
+      
       var curr_sample = {};
-      var i, j;
-      for(j = 0; j < this.monitored_params.length; j++) {
-        curr_sample[this.monitored_params[j]] = [];
+      for(j = 0; j < monitored_params.length; j++) {
+        curr_sample[monitored_params[j]] = [];
       }
       
       for(i = 0; i < n_iterations; i++) {
         if(i % this.thinning_interval === 0) {
-          for(j = 0; j < this.monitored_params.length; j++) {
-            var param = this.monitored_params[j];
+          for(j = 0; j < monitored_params.length; j++) {
+            var param = monitored_params[j];
             curr_sample[param].push(this.state[param]);
           }
         }
         this.step();
       }
       return curr_sample;
-    }
   };
   
   Sampler.prototype.burn = function(n_iterations) {
@@ -788,12 +798,7 @@ var mcmc = (function(){
   };
   
   Sampler.prototype.monitor = function(params_to_monitor) {
-  // sets what parameters to monitor, overwrites last monitor
-    if(params_to_monitor === null) {
-      this.monitored_params = this.param_names;
-    } else {
-      this.monitored_params = params_to_monitor;  
-    }
+      this.monitored_params = params_to_monitor;
   };
   
   Sampler.prototype.thin = function(thinning_interval) {

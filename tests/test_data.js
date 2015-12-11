@@ -86,6 +86,7 @@ var norm_post = function(par, data) {
   for(var i = 0; i < data.length; i++) {
     log_post += ld.norm(data[i], mu, sigma);
   }
+  par.var = sigma * sigma;
   return log_post;
 };
 
