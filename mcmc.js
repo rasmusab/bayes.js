@@ -1,26 +1,22 @@
 "use strict";
 
-// TODO
-// * If a log_post function returns an object it should contain the element log_post, 
-// all other elements gets added to the generated samples, this allows generated
-// quantities to be defined in the log_post function, e.g. 
-// `return {log_post: log_post, y_pred: y_pred}`
-
 var mcmc = (function(){
+  
   ////////// Helper Functions //////////
   
-  // Returns a random real number between min and max;
+  /** Returns a random real number between min and max */
   var runif = function(min, max) {
     return Math.random() * (max - min) + min;
   };
   
-  // Returns a random integer between min and max
+  /** Returns a random integer between min and max */
   var runif_discrete = function(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   };
   
-  // Normal random number generator
-  // Adapted from https://github.com/jstat/jstat/blob/master/src/special.js
+  /** Returns a random real number from a normal distribbution defined
+   *  by mean and sd. 
+   *  Adapted from https://github.com/jstat/jstat/blob/master/src/special.js */
   var rnorm = function(mean, sd) {
     var u, v, x, y, q;
     do {
@@ -34,7 +30,10 @@ var mcmc = (function(){
     return (v / u) * sd + mean;
   };
   
-  // Clones an object. From http://davidwalsh.name/javascript-clone
+  /** Returns a deep clone of src, sort of... It only copies a limited
+   * number of object and, for example, function are not copied. 
+   * From http://davidwalsh.name/javascript-clone
+   */
   var deep_clone = function(src) {
   	function mixin(dest, source, copyFunc) {
   		var name, s, i, empty = {};
@@ -81,12 +80,23 @@ var mcmc = (function(){
   	return mixin(r, src, deep_clone);
   };
   
+  /** Returns true if object is a number.
   var is_number = function(object) {
       return typeof object == "number" || (typeof object == "object" && object.constructor === Number);
   };
   
-  // create a multidimensional array. Adapted from http://stackoverflow.com/a/966938/1001848
-  // Example: create_array([2,3], 1) -> [[1,1],[1,1],[1,1]]
+  /**
+   * Creates and initializes a (possibly multidimensional/nested) array.
+   * @param dim - An array giving the dimension of the array. For example,
+   *   [5] would yield a 5 element array, and [3,3] would yield a 3 by 3 matrix.
+   * @param init - A value or a function used to fill in the each element in
+   *   the array. If it is a function it should take no arguments, it will be 
+   *   evaluated once for each element, and it's return value will be used to
+   *   fill in each element.
+   * @example 
+   * // The following would return [[1,1],[1,1],[1,1]]
+   * create_array([2,3], 1)
+   */
   var create_array = function(dim, init) {
     var arr = new Array(dim[0]);
     var i;
@@ -110,9 +120,14 @@ var mcmc = (function(){
     return arr;
   };
   
-  // Return the dimensions of a possibly nested array as an array, for example:
-  // array_dim(create_array([4, 2, 1], 0)) -> [4, 2, 1]
-  // This assumes that all arrays inside another array are of the same length.
+  /**
+   * Return the dimensions of a possibly nested array as an array. For 
+   * example, array_dim( [[1, 2], [1, 2]] ) should return [2, 2]
+   * Assumes that all arrays inside another array are of the same length.
+   * @example
+   * // Should return [4, 2, 1]
+   * array_dim(create_array([4, 2, 1], 0))
+   */
   var array_dim = function(a) {
     if(Array.isArray(a[0])) {
       return [a.length].concat(array_dim(a[0]));
@@ -121,7 +136,11 @@ var mcmc = (function(){
     }
   };
   
-  // Checks if two arrays are equal. Adapted from http://stackoverflow.com/a/14853974/1001848
+  /**
+   * Checks if two arrays are equal in teh sense that they contain the same elements
+   * as judged by the "==" operator. Returns true or false.
+   * Adapted from http://stackoverflow.com/a/14853974/1001848
+   */ 
   var array_equal = function (a1, a2) {
       if (a1.length != a2.length) return false;
       for (var i = 0; i < a1.length; i++) {
@@ -138,8 +157,11 @@ var mcmc = (function(){
       return true;
   };
   
-  // Traverses a possibly nested array a and applies fun to all "leaf nodes", that is, 
-  // values that are not arrays.
+  /**
+   * Traverses a possibly nested array a and applies fun to all "leaf nodes", 
+   * that is, values that are not arrays. Returns an array of the same size as
+   * a.
+   */
   var nested_array_apply = function(a, fun) {
     if(Array.isArray(a)) {
       var result = new Array(a.length);
@@ -152,9 +174,10 @@ var mcmc = (function(){
     }
   };
   
-  // Randomize array element order in-place.
-  // Using Durstenfeld shuffle algorithm.
-  // Adapted from here: http://stackoverflow.com/a/12646864/1001848
+  /** Randomizing the array element order in-place. Using Durstenfeld
+   * shuffle algorithm. Adapted from here: 
+   * http://stackoverflow.com/a/12646864/1001848
+   */
   function shuffle_array(array) {
       for (var i = array.length - 1; i > 0; i--) {
           var j = Math.floor(Math.random() * (i + 1));
