@@ -31,7 +31,7 @@ var mcmc = (function(){
   };
   
   /** Returns a deep clone of src, sort of... It only copies a limited
-   * number of object and, for example, function are not copied. 
+   * number of types and, for example, function are not copied. 
    * From http://davidwalsh.name/javascript-clone
    */
   var deep_clone = function(src) {
@@ -81,6 +81,7 @@ var mcmc = (function(){
   };
   
   /** Returns true if object is a number.
+   */
   var is_number = function(object) {
       return typeof object == "number" || (typeof object == "object" && object.constructor === Number);
   };
@@ -137,7 +138,7 @@ var mcmc = (function(){
   };
   
   /**
-   * Checks if two arrays are equal in teh sense that they contain the same elements
+   * Checks if two arrays are equal in the sense that they contain the same elements
    * as judged by the "==" operator. Returns true or false.
    * Adapted from http://stackoverflow.com/a/14853974/1001848
    */ 
@@ -188,7 +189,12 @@ var mcmc = (function(){
       return array;
   }
   
-  // Like nested_array_apply but traversing the nested array branching randomly.
+  /**
+   * Does the same thing as nested_array_apply, that is, traverses a possibly
+   * nested array a and applies fun to all "leaf nodes" and returns an array 
+   * of the same size as a. The difference is that nested_array_random_apply
+   * branches randomly.
+   */
   var nested_array_random_apply = function(a, fun) {
     if(Array.isArray(a)) {
       var len = a.length;
@@ -210,6 +216,18 @@ var mcmc = (function(){
     }
   };
   
+  /**
+   * Allows a pretty way of setting default options where the defults can be
+   * overridden by an options object.
+   *  @param option_name - the name of the option as a string
+   *  @param my_options - an option object that could have option_name 
+   *    as a member.
+   * @param defaul_value - defult value that is returned if option_name 
+   *   is not defined in my_options.
+   * @example
+   * var my_options = {pi: 3.14159}
+   * var pi = get_option("pi", my_options, 3.14)
+   */
   // Pretty way of setting default options where the defaults can be overridden
   // by an options object. For example:
   // var pi = get_option("pi", my_options, 3.14)
@@ -220,23 +238,35 @@ var mcmc = (function(){
            options[option_name] !== null ? options[option_name] : defaul_value;
   };
   
-  // Version of get_option where the result should be a possibly mulidimensional array
-  // and where the default can be overridden either by a scalar or by an array.
+  /** Version of get_option where the option should be a one or multi-dimensional
+   * array and where the default can be overridden either by a scalar or by an array.
+   * If it's a scalar the that scalar is used to initialize an array with 
+   * dim dimensions.
+   * 
+   */
   var get_multidim_option = function(option_name, options, dim, defaul_value) {
     var value = get_option(option_name, options, defaul_value);
      if(! Array.isArray(value)) {
        value = create_array(dim, value);
      } 
      if(! array_equal( array_dim(value), dim)) {
-       throw "The option " + option_name + " is of dimension [" + array_dim(value) + "] but should be [" + dim + "].";
+       throw "The option " + option_name + " is of dimension [" + 
+             array_dim(value) + "] but should be [" + dim + "].";
     }
      return value;
   };
   
   ////////// Functions for handling parameter objects //////////
   
-  // Returns a number that can be used to initialize a parameter
+  /**
+   * Returns a fixed (same every time) number that could be used to initialize
+   * a parameter of a certain type, possibly with lower and upper bounds.
+   * The possile types are "real", "int", and "binary".
+   */
   var param_init_fixed = function(type, lower, upper) {
+    if(lower > upper) {
+      throw "Can not initialize parameter where lower bound > upper bound";
+    }
     if(type === "real") {
       if(lower === -Infinity && upper === Infinity) {
         return 0.5;
@@ -263,12 +293,20 @@ var mcmc = (function(){
     throw "Could not initialize parameter of type " + type + "[" + lower + ", " + upper + "]";
   };
   
-  // Completes an object containing parameter descriptions and initializes
-  // non-initialized parameters. For example, this:
-  //  { "mu": {"type": "real"} }
-  // gets completed into this:
-  //  {"mu": { "type": "real", "dim": [1], "upper": Infinity,
-  //           "lower": -Infinity, "init": 0.5 }}
+  /**
+   * Completes params_to_complete, an object containing parameter descriptions, 
+   * and initializes non-initialized parameters. This modified version of
+   * params_to_complete is returned as a deep copy and not modified in place.
+   * Initialization is done by supplying a param_init function with signature
+   * function(type, lower, upper) that should return a single number 
+   * (like param_init_fixed, for example).
+   * @example
+   * var params = { "mu": {"type": "real"} }
+   * params = complete_params(params);
+   * // params should now be:
+   * //  {"mu": { "type": "real", "dim": [1], "upper": Infinity,
+   * //           "lower": -Infinity, "init": 0.5 }}
+   */ 
   var complete_params  = function(params_to_complete, param_init) {
     var params = deep_clone(params_to_complete);
     for (var param_name in params) { if (!params.hasOwnProperty(param_name)) continue;
