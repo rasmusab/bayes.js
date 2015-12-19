@@ -562,10 +562,24 @@ var mcmc = (function(){
   IntMetropolisStepper.prototype.constructor = IntMetropolisStepper;
   
   
-  ////////// MultidimAdaptiveMetropolisStepper //////////
-  
-  // subparams should probabily be called subparams and should have dim be set correctly
-  
+  /**
+   * @class
+   * @implements {Stepper}
+   * Constructor for an object that implements the metropolis step in
+   * the Adaptive Metropolis-Within-Gibbs algorithm in "Examples of Adaptive MCMC"
+   * by Roberts and Rosenthal (2008) for possibly multidimensional arrays. That
+   * is, instead of just taking a step for a single parameter like 
+   * OnedimMetropolisStepper, this Stepper is responsible for taking steps 
+   * for an multidimensional array. It's still pretty dumb and just takes
+   * one-dimensional steps for each parameter component.
+   * @param params - An object with a single parameter definition for a 
+   *   multidimensional parameter.
+   * @param state - an object containing the state of all parameters.
+   * @param log_post - A function that returns the log density that depends on the state. 
+   * @param options - an object with options to the stepper.
+   * @param SubStepper - a constructor for the type of one dimensional Stepper to apply on
+   *   all the components of the multidimensional parameter.
+  */
   var MultidimComponentMetropolisStepper = function(params, state, log_post, options, SubStepper) {
     Stepper.call(this, params, state, log_post);
     
@@ -585,6 +599,8 @@ var mcmc = (function(){
     this.target_accept_rate = get_multidim_option("target_accept_rate", options, this.dim, 0.44);
     this.is_adapting        = get_multidim_option("is_adapting", options, this.dim, true);
     
+    // This hack below is a recursive function that creates an array of 
+    // one dimensional steppers according to dim.
     var create_substeppers = 
       function(dim, substate, log_post, prop_log_scale, batch_size, max_adaptation, target_accept_rate, is_adapting) {
       var substeppers = [];
@@ -636,17 +652,23 @@ var mcmc = (function(){
     });
   };
   
-  ////////// MultiRealComponentMetropolisStepper //////////
-  
+  /**
+   * @class
+   * @augments {MultidimComponentMetropolisStepper}
+   * A "subclass" of MultidimComponentMetropolisStepper making continous Normal proposals.
+   */
   var MultiRealComponentMetropolisStepper = function(params, state, log_post, options) {
     MultidimComponentMetropolisStepper.call(this, params, state, log_post, options, RealMetropolisStepper);
   };
   
   MultiRealComponentMetropolisStepper.prototype = Object.create(MultidimComponentMetropolisStepper.prototype); 
   MultiRealComponentMetropolisStepper.prototype.constructor = MultiRealComponentMetropolisStepper;
-  
-  ////////// MultiIntComponentMetropolisStepper //////////
-  
+
+  /**
+   * @class
+   * @augments {MultidimComponentMetropolisStepper}
+   * A "subclass" of MultidimComponentMetropolisStepper making discretized Normal proposals.
+   */    
   var MultiIntComponentMetropolisStepper = function(params, state, log_post, options) {
     MultidimComponentMetropolisStepper.call(this, params, state, log_post, options, IntMetropolisStepper);
   };
