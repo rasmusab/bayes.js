@@ -3,6 +3,7 @@
 var mcmc = (function(){
   
   ////////// Helper Functions //////////
+  //////////////////////////////////////
   
   /** Returns a random real number between min and max */
   var runif = function(min, max) {
@@ -257,6 +258,7 @@ var mcmc = (function(){
   };
   
   ////////// Functions for handling parameter objects //////////
+  //////////////////////////////////////////////////////////////
   
   /**
    * Returns a fixed (same every time) number that could be used to initialize
@@ -356,54 +358,85 @@ var mcmc = (function(){
   };
   
   
-  ////////// Stepper interface ///////////
+  ////////// Stepper Functions ///////////
+  ////////////////////////////////////////
   
   
-  // A Stepper is an object responsible for pushing around one
-  // or more parameter values in a state according to the distribution
-  // defined by the log posterior.
-  // params: An object with parameter definitions, for example:
-  //             {x:{ type: real }}
-  // state     : An object with containing the state of each parameter 
-  //             as either a scalar or an array. For example:
-  //            {sigma:5, beta: [1, 2.5]}
-  // log_post : A function *taking no parameters* that returns the
-  //             current log density. That is, the value of posterior()
-  //             needs to change if the values in state changes.
+  /**
+   * @interface
+   * A Stepper is an object responsible for pushing around one
+   * or more parameter values in a state according to the distribution
+   * defined by the log posterior. This defines the Stepper "interface",
+   * where "interface" means that Stepper defines a class that is never
+   * meant to be instantiated, but just to be subclassed by specialized
+   * stepper functions.
+   * @interface
+   * @param params - An object with parameter definitions, for example:
+   *   {"mu": { "type": "real", "dim": [1], "upper": Infinity, 
+   *   "lower": -Infinity, "init": 0.5 }}
+   *   The parameter definitions are expected to be "complete", that is,
+   *   specifying all relevant attributes such as dim, lower and upper.
+   * @param state - an object containing the state of all parameters in params
+   *   (and possibly more). The parameter names are given as keys and the states
+   *   as scalars or, possibly nested, arrays. For example:
+   *   {mu: 10, sigma: 5, beta: [1, 2.5]}
+   * @param log_post - A function *taking no parameters* that returns the
+   *   log density that depends on the state. That is, the value of log_post
+   *   should change if the the values in state are changed.
+  
+   */
   var Stepper = function(params, state, log_post) {
     this.params = params;
     this.state = state;
     this.log_post = log_post;
   };
   
+  /**
+   * Takes a step in the parameter space. Should return the new state,
+   * but is mainly called for it's side effect of making a change in the
+   * state object.
+   */
   Stepper.prototype.step = function() {
     throw "Every Stepper need to implement step()";
   };
   
+  /**
+   * If implemented, makes the stepper adapt while stepping.
+   */ 
   Stepper.prototype.start_adaptation = function() {
     // Optional, some steppers might not be adaptive. */ 
   };
   
+  /**
+   * If implemented, makes the stepper cease adapting while stepping.
+   */ 
   Stepper.prototype.stop_adaptation = function() {
     // Optional, some steppers might not be adaptive. */ 
   };
   
+  /**
+   * Returns an object containg info regarding the stepper.
+   */ 
   Stepper.prototype.info = function() {
     // Returns an object with info about the state of the stepper.
     return {};
   };
   
-  ////////// OnedimMetropolisStepper ///////////
   
-  // Constructor for an object that implements the metropolis step in
-  // the Adaptive Metropolis-Within-Gibbs algorithm in "Examples of Adaptive MCMC"
-  // by Roberts and Rosenthal (2008).
-  // params: an object containing a single parameter definition of 
-  //         a one dimensional parameter.
-  // state: A reference to the state object that this stepper will affect.
-  // log_post: A function returning the log likelihood that takes no arguments but
-  //            that should depend on state.
-  // options: An optional object containing options to the stepper. 
+  /**
+   * @class
+   * @implements {Stepper}
+   * Constructor for an object that implements the metropolis step in
+   * the Adaptive Metropolis-Within-Gibbs algorithm in "Examples of Adaptive MCMC"
+   * by Roberts and Rosenthal (2008).
+   * @param params - An object with a single parameter definition.
+   * @param state - an object containing the state of all parameters.
+   * @param log_post - A function that returns the log density that depends on the state. 
+   * @param options - an object with options to the stepper.
+   * @param generate_proposal - a function returning a proposal (as a number)
+   * with signature function(param_state, log_scale) where param_state is a
+   * number and log_scale defines the scale of the proposal somehow.
+  */
   var OnedimMetropolisStepper = function(params, state, log_post, options, generate_proposal) {
     Stepper.call(this, params, state, log_post);
     
@@ -490,13 +523,18 @@ var mcmc = (function(){
   };
   
   
-  ////////// RealMetropolisStepper ///////////
-  // A subclass of OnedimMetropolisStepper making continous Normal proposals
-  
+  /**
+   * Function returning a Normal proposal.
+   */
   var normal_proposal = function(param_state, prop_log_scale) {
     return rnorm(param_state , Math.exp(prop_log_scale));
   };
   
+  /**
+   * @class
+   * @augments {OnedimMetropolisStepper}
+   * A "subclass" of OnedimMetropolisStepper making continous Normal proposals.
+   */
   var RealMetropolisStepper = function(params, state, log_post, options) {
     OnedimMetropolisStepper.call(this, params, state, log_post, options, normal_proposal);
   };
@@ -504,13 +542,18 @@ var mcmc = (function(){
   RealMetropolisStepper.prototype = Object.create(OnedimMetropolisStepper.prototype); 
   RealMetropolisStepper.prototype.constructor = RealMetropolisStepper;
   
-  ////////// IntMetropolisStepper ///////////
-  // A subclass of OnedimMetropolisStepper taking discrete Normal proposals
-  
+  /**
+   * Function returning a discretized Normal proposal.
+   */
   var discrete_normal_proposal = function(param_state, prop_log_scale) {
     return Math.round(rnorm(param_state , Math.exp(prop_log_scale)));
   };
   
+    /**
+   * @class
+   * @augments {OnedimMetropolisStepper}
+   * A "subclass" of OnedimMetropolisStepper making discretized Normal proposals.
+   */
   var IntMetropolisStepper = function(params, state, log_post, options) {
     OnedimMetropolisStepper.call(this, params, state, log_post, options, discrete_normal_proposal);
   };
