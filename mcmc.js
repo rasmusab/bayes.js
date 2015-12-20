@@ -568,10 +568,10 @@ var mcmc = (function(){
    * Constructor for an object that implements the metropolis step in
    * the Adaptive Metropolis-Within-Gibbs algorithm in "Examples of Adaptive MCMC"
    * by Roberts and Rosenthal (2008) for possibly multidimensional arrays. That
-   * is, instead of just taking a step for a single parameter like 
+   * is, instead of just taking a step for a one-dimensional parameter like 
    * OnedimMetropolisStepper, this Stepper is responsible for taking steps 
-   * for an multidimensional array. It's still pretty dumb and just takes
-   * one-dimensional steps for each parameter component.
+   * for a multidimensional array. It's still pretty dumb and just takes
+   * one-dimensional steps for each parameter component, though.
    * @param params - An object with a single parameter definition for a 
    *   multidimensional parameter.
    * @param state - an object containing the state of all parameters.
@@ -676,8 +676,18 @@ var mcmc = (function(){
   MultiIntComponentMetropolisStepper.prototype = Object.create(MultidimComponentMetropolisStepper.prototype); 
   MultiIntComponentMetropolisStepper.prototype.constructor = MultiIntComponentMetropolisStepper;
   
-  ////////// BinaryStepper //////////
-  
+  /**
+   * @class
+   * @implements {Stepper}
+   * Constructor for an object that implements a step for a binary parameter.
+   * This is done by evaluating the log posterior for both states of the
+   * parameter and then selecting a state randomly with probability relative 
+   * to the posterior of each state.
+   * @param params - An object with a single parameter definition.
+   * @param state - an object containing the state of all parameters.
+   * @param log_post - A function that returns the log density that depends on the state. 
+   * @param options - an object with options to the stepper.
+  */
   var BinaryStepper = function(params, state, log_post, options) {
     Stepper.call(this, params, state, log_post);
     var param_names = Object.keys(this.params);
@@ -707,8 +717,18 @@ var mcmc = (function(){
     return 1;
   };
   
-  ////////// BinaryComponentStepper //////////
-  
+    /**
+   * @class
+   * @implements {Stepper}
+   * Just like MultidimComponentMetropolisStepper this Stepper takes a steps for
+   * a multidimensional parameter by updating each component in turn. The difference
+   * is that this stepper works on binary parameters.
+   * @param params - An object with a single parameter definition for a 
+   *   multidimensional parameter.
+   * @param state - an object containing the state of all parameters.
+   * @param log_post - A function that returns the log density that depends on the state. 
+   * @param options - an object with options to the stepper.
+  */
   var BinaryComponentStepper = function(params, state, log_post, options) {
     Stepper.call(this, params, state, log_post);
     
@@ -750,8 +770,21 @@ var mcmc = (function(){
     return nested_array_random_apply(this.substeppers, function(substepper) {return substepper.step(); });
   };
   
-  ////////// AmwgStepper (Adaptive Metropolis With Gibbs) //////////
-  
+  /**
+   * @class
+   * @implements {Stepper}
+   * This stepper can be responsible for taking a step for one or more parameters.
+   * For real and int parameters it takes Metropolis within Gibbs steps, and for 
+   * binary parameters it does evaluates the posterior for both paramter values and
+   * randomly changes to a certain value proportionally to that value's posterior
+   * (this is also done for each parameter, so also a * within Gibbs approach).
+   * This stepper is also adaptive and can be efficient when the number of parameters
+   * are not too high and the correlations between parameters are low.
+   * @param params - An object with a one or more parameter definitions
+   * @param state - an object containing the state of all parameters.
+   * @param log_post - A function that returns the log density that depends on the state. 
+   * @param options - an object with options to the stepper.
+  */
   var AmwgStepper = function(params, state, log_post, options) {
     Stepper.call(this, params, state, log_post);
     this.param_names = Object.keys(this.params);
@@ -832,16 +865,34 @@ var mcmc = (function(){
   
   
   
-  /////////// Sampler Interface //////////
-  // While you could fit a model using the Steppers above, the
-  // Sampler is a convenience class where an instance of Sampler
-  // sets up the steppers, checks the parameter definition,
-  // and manages the sampling.
+  /////////// Sampler Functions //////////
+  ////////////////////////////////////////
+  
+  
+   /**
+   * @interface
+   * While you could fit a model by pasting together Steppers, a
+  // Sampler is here is a convenience class where an instance of Sampler
+  // sets up the Steppers, checks the parameter definition,
+  // and manages the sampling. This here defines the Sampler "interface".
+   * @interface
+   * @param params - An object with parameter definitions, for example:
+   *   {"mu": {"type": "real"}, "sigma": {"type": "real", "lower" = 0}}
+   *   The parameter definitions doesn't have to be "complete" and properties
+   *   left out (like lower and upper) will be filled in by defaults.
+   * @param log_post - A function with signature function(state, data). Here
+   *   state will be an object representing the state with each parameter as a 
+   *   key and the parameter values as numbers or arrays. For example:
+   *   {"mu": 3, "sigma": 1.5}. The data argument will be the same object as 
+   *   the data argument given below.
+   * @param data - an object that will be passed on to the log_post function
+   *   when sampling.
+   * @param options - an object with options to the sampler.
+   */
   var Sampler = function(params, log_post, data, options) {
     this.params = params;
     this.data = data;
     this.param_names = Object.keys(this.params);
-    
     
     // Setting default options if not passed through the options object
     this.param_init_fun   = get_option("param_init_fun", options, param_init_fixed);
@@ -866,18 +917,23 @@ var mcmc = (function(){
     this.steppers = this.create_stepper_ensamble(this.params, this.state, this.log_post, this.options);
   };
   
-  // Creates an vector of steppers that when called 
-  // should take a step in the parameterspace.
+  /** Should return a vector of steppers that when called 
+   * should take a step in the parameter space.
+   */
   Sampler.prototype.create_stepper_ensamble = function(state, log_post){
     throw "Every Sampler needs to implement create_stepper_ensamble()";
   };
   
-  // Returns an object with info about the state of the Sampler.
+  /** Returns an object with info about the state of the Sampler.
+   */ 
   Sampler.prototype.info = function() {
     return {state: this.state, thin: this.thin, monitor: this.monitor,
             steppers: this.steppers};
   };
   
+  /** Takes a step in the parameter space. Returns the new space
+   * but also modifies the state in place.
+   */ 
   Sampler.prototype.step = function() {
     for(var i = 0; i < this.steppers.length; i++) {
       this.steppers[i].step();
@@ -888,8 +944,15 @@ var mcmc = (function(){
       // for the final parameter state
       this.log_post();
     }
+    return this.state;
   };
   
+  /**
+   * Takes n_iterations steps in the parameter space and returns them
+   * as an object of arrays with one array per parameter. For example:
+   * {mu: [1, -1, 2, 3, ...], sigma: [1, 2, 2, 1, ...]}.
+   * If thin is > 1 then n_iterations / thin samples are returned.
+   */ 
   Sampler.prototype.sample = function(n_iterations) {
       // Initializing curr_sample where the sample is going to be saved
       // as an object containing one array per parameter to be monitored.
@@ -917,34 +980,64 @@ var mcmc = (function(){
       return curr_sample;
   };
   
+  /**
+   * Takes n_iteration steps in parameter space but returns nothing.
+   */ 
   Sampler.prototype.burn = function(n_iterations) {
     for(var i = 0; i < n_iterations; i++) {
       this.step();
     }
   };
   
+  /**
+   * Sets what parameters should be monitored and returned when calling
+   * sample.
+   */ 
   Sampler.prototype.monitor = function(params_to_monitor) {
       this.monitored_params = params_to_monitor;
   };
   
+  /**
+   * Sets the thinning. For example thin == 10 means that every 10th posterior
+   * draw will be kept.
+   */ 
   Sampler.prototype.thin = function(thinning_interval) {
     this.thinning_interval = thinning_interval;
   };
   
+  /**
+   * Sets adaptation on, if applicable, in all steppers.
+   */ 
   Sampler.prototype.start_adaptation = function() {
     for(var i = 0; i < this.steppers.length; i++) {
       this.steppers[i].start_adaptation();
     }
   };
   
+    /**
+   * Sets adaptation off, if applicable, in all steppers.
+   */ 
   Sampler.prototype.stop_adaptation = function() {
     for(var i = 0; i < this.steppers.length; i++) {
       this.steppers[i].stop_adaptation();
     }
   };
   
-  ////////// AmwgSampler /////////
-  
+   /**
+   * @class
+   * @implements {Sampler}
+   * This sampler uses the AmwgStepper as the stepper function which implements the 
+   * Adaptive Metropolis-Within-Gibbs algorithm in "Examples of Adaptive MCMC"
+   * by Roberts and Rosenthal (2008). An adition is that it handles int parameters
+   * by making discrete Normal proposals and binary parameters by taking on a new 
+   * value proportional to the posterior of the two possible states of the
+   * parameter. This sampler can be efficient when the number of parameters
+   * are not too high and the correlations between parameters are low.
+   * @param params - An object with a one or more parameter definitions
+   * @param state - an object containing the state of all parameters.
+   * @param log_post - A function that returns the log density that depends on the state. 
+   * @param options - an object with options to the stepper.
+  */
   var AmwgSampler = function(params, log_post, data, options) {
     Sampler.call(this, params, log_post, data, options);
   };
@@ -956,6 +1049,8 @@ var mcmc = (function(){
     return [ new AmwgStepper(params, state, log_post, options) ];
   };
   
+  
+  // Returning the functions that should be publicly exposed by this module
   return {
     runif: runif,
     runif_discrete: runif_discrete,
