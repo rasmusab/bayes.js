@@ -2,16 +2,16 @@
 
 
 // A number of log probability density functions (PDF). Naming and parameterization
-// should match R's, except for that all functions reside in the ld (
+// should match R's, except for that all functions reside in an ld object (
 // as in "log density"), so to get a normal log density you would write
 // ld.norm(...).
 // Most of the code below is directly taken from the great Jstat project
-// (https://github.com/jstat/) which includes PDF for many common probaility
+// (https://github.com/jstat/) which includes PDF for many common probability
 // distributions. What I have done is only to convert these to log PDFs.
 
 /*
 Original work Copyright (c) 2013 jStat
-Modified work Copyright (c) 2012 Rasmus Bååth 
+Modified work Copyright (c) 2015 Rasmus Bååth 
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -34,9 +34,11 @@ THE SOFTWARE.
 */
 
 var ld = (function() {
+  // Object to hold the functions to be exported.
   var ld  = {};
   
   ////////// Helper functions //////////
+  //////////////////////////////////////
   
   var gammaln = function(x) {
     var j = 0;
@@ -75,6 +77,8 @@ var ld = (function() {
   var pi = Math.PI;
   
   ////////// Continous distributions //////////
+  /////////////////////////////////////////////
+  
   ld.beta = function(x, shape1, shape2) {
     if (x > 1 || x < 0) {
         return -Infinity;
@@ -152,6 +156,7 @@ var ld = (function() {
   };
   
   ////////// Discrete distributions //////////
+  ////////////////////////////////////////////
   
   ld.bern = function(x, prob) {
       return !(x === 0 || x === 1) ? -Infinity : log(x * prob + (1 - x) * (1 - prob));
