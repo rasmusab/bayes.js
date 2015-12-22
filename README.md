@@ -7,6 +7,49 @@ A small toy javascript MCMC framework that can be used fit Bayesian models in th
 
 In addition to this the whole thing is wrapped within an [Rstudio](https://www.rstudio.com/) project as I've use R and JAGS to write some tests.
 
+Minimal example of fitting a Normal distribution
+--------------------
+
+Given that **mcmc.js** and **distributions.js** have been imported, here is how to define a Normal distribution, and fit it to some data and produce a sample of 5000 draws from the posterior:
+
+
+```JavaScript
+var data = [3, 14, 11, 20, 10, 1, 14, 15, 5, 13];
+
+var params = {
+  mu: {type: "real"},
+  sigma: {type: "real", lower: 0} };
+
+var norm_post = function(state, data) {
+  var log_post = 0;
+  // Priors
+  log_post += ld.norm(state.mu, 0, 100);
+  log_post += ld.unif(state.sigma, 0, 100);
+  // Likelihood
+  for(var i = 0; i < data.length; i++) {
+    log_post += ld.norm(data[i], state.mu, state.sigma);
+  }
+  return log_post;
+};
+
+// Initializing the sampler
+var sampler =  new mcmc.AmwgSampler(params, norm_post, data);
+// Burning some samples to the MCMC gods and sampling 5000 draws.
+sampler.burn(1000)
+var samples = sampler.sample(5000)
+```
+*You can find an interactive version of this script [here](http://codepen.io/rasmusab/pen/LpaKep?editors=001)*
+
+And here is a plot of the resulting sample made in Javascript using the plotly.js library:
+
+![Normal model posterior](media/normal_model_plotly.png?raw=true)
+
+
+
+
+
+*** Below is not up to date yet! ***
+
 How to fit a Bayesian model
 -----------------------------
 
@@ -34,38 +77,7 @@ Not all parameter properties need to be filled in and when left out will be repl
 
 **`options`** (optional): An object defining options to the sampler
 
-An example of fitting a Gaussian model
------------------
 
-Given that **mcmc.js** and **distributions.js** has been imported, here is how to fit a Normal model to some data:
-
-*You can find an interactive version of this script [here](http://codepen.io/rasmusab/pen/LpaKep?editors=001)*
-
-```
-var data = [3, 14, 11, 20, 10, 1, 14, 15, 5, 13];
-
-var params = {
-  mu: {type: "real"},
-  sigma: {type: "real", lower: 0, init: 1}};
-
-var norm_post = function(par, data) {
-  var log_post = 0;
-  // Priors
-  log_post += ld.norm(par.mu, 0, 100);
-  log_post += ld.unif(par.sigma, 0, 100);
-  // Likelihood
-  for(var i = 0; i < data.length; i++) {
-    log_post += ld.norm(data[i], par.mu, par.sigma);
-  }
-  return log_post;
-};
-
-// Initializing the sampler
-var sampler =  new mcmc.AmwgSampler(params, norm_post, data);
-// Burning some samples to the MCMC gods, 
-sampler.burn(1000)
-var samples = sampler.sample(10000)
-```
 
 
 References
