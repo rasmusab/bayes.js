@@ -218,4 +218,4 @@ For the time being, just check the source of **mcmcm.js**.
 References
 --------------------
 
-Roberts, G. O., & Rosenthal, J. S. (2009). Examples of adaptive MCMC. *Journal of Computational and Graphical Statistics*, 18(2), 349-367. [pdf]((http://probability.ca/jeff/ftpdir/adaptex.pdf)
+Roberts, G. O., & Rosenthal, J. S. (2009). Examples of adaptive MCMC. *Journal of Computational and Graphical Statistics*, 18(2), 349-367. [pdf](http://probability.ca/jeff/ftpdir/adaptex.pdf)
