@@ -72,6 +72,8 @@ var ld = (function() {
   ld.combinationln = combinationln;
   
   var log = Math.log;
+  var exp = Math.exp;
+  var abs = Math.abs;
   var pow = Math.pow;
   var sqrt = Math.sqrt;
   var pi = Math.PI;
@@ -97,6 +99,24 @@ var ld = (function() {
   ld.norm = function(x, mean, sd) {
       return -0.5 * log(2 * pi) -log(sd) - pow(x - mean, 2) / (2 * sd * sd);
   };
+  
+/*
+Bivariate normal distribution parameterized using the correlation.
+! Not on the log-scale yet... !
+var bivarnorm = function(x, mu, sigma, rho) {
+  var z = (x[0] - mu[0])^2 / sigma[0]^2 - (2 * rho * (x[0] - mu[0]) * (x[1] - mu[1])) / 
+          (sigma[0] * sigma[1]) + (x[1] - mu[1])^2 / sigma[1]^2;
+  var bivar_log_dens = 1/(2 * pi * sigma[0] * sigma[1] * sqrt(1 - rho^2)) * 
+                       exp(-z / (2 * (1 - rho^2 ))); 
+  return bivar_log_dens;
+};
+*/
+
+  ld.laplace = function(x, location, scale) {
+    return (-abs(x - location)/scale) - log(2 * scale);
+  };
+  
+  ld.dexp = ld.laplace;
   
   ld.gamma = function(x, shape, scale) {
     if (x < 0) {
@@ -162,6 +182,14 @@ var ld = (function() {
       return !(x === 0 || x === 1) ? -Infinity : log(x * prob + (1 - x) * (1 - prob));
   };
   
+  ld.cat = function(x, probs) {
+    if(x < 1 || x > probs.length) {
+      return -Infinity;
+    } else {
+      return log( probs[x - 1] );
+    }
+  };
+  
   ld.binom = function(x, size, prob) {
     if(x > size || x < 0) {
       return -Infinity;
@@ -179,6 +207,13 @@ var ld = (function() {
     return combinationln(x + size - 1, size - 1) + x * log(1 - prob) + size * log(prob);
   };
   
+  ld.hyper = function(x, m, n, k) {
+    if(x < 0 || x > k) {
+      return -Infinity;
+    } else {
+    return combinationln(m, x) + combinationln(n, k-x) - combinationln(m+n, k);
+    }
+  };
   
   ld.pois = function(x, lambda) {
       return x < 0 ? -Infinity : log(lambda) * x - lambda - factorialln(x);
