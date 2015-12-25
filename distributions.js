@@ -226,6 +226,25 @@ var ld = (function() {
     return combinationln(size, x) + x * log(prob) + (size - x) * log(1 - prob);
   };
   
+  var multinom = function(x, prob) {
+    var n = x.length;
+    var size = 0;
+    var tmp_term = 0;
+    for(var i = 0; i < n; i++) {
+      if(prob[i] === 0) {
+        if(x[i] !== 0) {
+          return -Infinity;  
+        }
+      } else {
+        size += x[i];
+        tmp_term += x[i] * log(prob[i]) - gammaln(x[i] + 1);
+      }
+    }
+    return gammaln(size + 1) + tmp_term ;
+  };
+  
+  
+  
   ld.nbinom = function(x, size, prob) {
     if(x < 0) {
       return -Infinity;
