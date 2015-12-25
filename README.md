@@ -205,8 +205,10 @@ Some interactive examples
 * [A Bernouli model with a spike-n-slab prior](http://codepen.io/rasmusab/pen/VejLPX?editors=001)
 * [An analysis of capture-recapture data](http://codepen.io/rasmusab/pen/OMROVe?editors=001)
 * [Correlation analysis / bivariate Normal model](http://codepen.io/rasmusab/pen/eJdyPo?editors=001)
+* [Simple linear regression](http://codepen.io/rasmusab/pen/wMzyGE?editors=001)
+* [Multivariate logistic regression](http://codepen.io/rasmusab/pen/eJdVBm?editors=001)
 * [the "Pump" example from the BUGS project](http://codepen.io/rasmusab/pen/jWMYxK?editors=001)
-* [An hierarchical model with varying slope and intercept](http://codepen.io/rasmusab/pen/VewLoM?editors=001) (This is streching the limits of what the simple `AmwgSampler` can do...)
+* [An hierarchical model with varying slope and intercept from Gelman and Hill ](http://codepen.io/rasmusab/pen/VewLoM?editors=001) (This is streching the limits of what the simple `AmwgSampler` can do...)
 
 Available distributions in distributions.js
 --------------------------------------------
