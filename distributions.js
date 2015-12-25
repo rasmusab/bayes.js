@@ -158,8 +158,8 @@ var ld = (function() {
            log(pow(1 + (1/nu) * pow((x - mu)/sigma, 2), -(nu + 1)/2));
   };
   
-  // This is a direct javascript translation of the code used to evaluate
-  // the log density of a weibul distribution: 
+  // This is a direct javascript translation of the R code used to evaluate
+  // the log density of a weibull distribution: 
   // https://github.com/wch/r-source/blob/b156e3a711967f58131e23c1b1dc1ea90e2f0c43/src/nmath/dweibull.c
   ld.weibull = function(x, shape, scale) {
     if (x < 0) return -Infinity;
@@ -169,6 +169,29 @@ var ld = (function() {
 	  return -tmp2 + log(shape * tmp1 / scale);
   };
   
+  // This is a direct javascript translation of the R code used to evaluate
+  // the log density of a logistic distribution: 
+  // https://github.com/wch/r-source/blob/b156e3a711967f58131e23c1b1dc1ea90e2f0c43/src/nmath/dlogis.c
+  ld.logis = function(x, location, scale) {
+    x = abs((x - location) / scale);
+    var e = exp(-x);
+    var f = 1.0 + e;
+    return -(x + log(scale * f * f));    
+  };
+
+  ld.dirichlet = function(x, alpha) {
+    var sum_alpha = 0;
+    var sum_gammaln_alpha = 0;
+    var sum_alpha_sub_1_log_x = 0;
+    var n = alpha.length;
+    for(var i = 0; i < n; i++) {
+      sum_alpha += alpha[i];
+      sum_gammaln_alpha += gammaln(alpha[i]);
+      sum_alpha_sub_1_log_x += (alpha[i] - 1) * log(x[i]);
+    }
+    return gammaln(sum_alpha) - sum_gammaln_alpha + sum_alpha_sub_1_log_x;
+  };
+   
     
   ld.exp = function(x, rate) {
       return x < 0 ? -Infinity : log(rate) -rate * x;
