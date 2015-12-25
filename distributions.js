@@ -158,15 +158,17 @@ var ld = (function() {
            log(pow(1 + (1/nu) * pow((x - mu)/sigma, 2), -(nu + 1)/2));
   };
   
-  // Commented out for now as this doesn't give the same answers 
-  // as the R version dweibull, for example, when x = 0.0 .
-  /*
+  // This is a direct javascript translation of the code used to evaluate
+  // the log density of a weibul distribution: 
+  // https://github.com/wch/r-source/blob/b156e3a711967f58131e23c1b1dc1ea90e2f0c43/src/nmath/dweibull.c
   ld.weibull = function(x, shape, scale) {
-    if (x < 0)
-      return -Infinity;
-    return log(shape) - log(scale) + (shape - 1) * log((x / scale)) - pow(x / scale, shape);
+    if (x < 0) return -Infinity;
+    if(x === 0 && shape < 1) return Infinity;
+    var tmp1 = pow(x / scale, shape - 1);
+    var tmp2 = tmp1 * (x / scale);
+	  return -tmp2 + log(shape * tmp1 / scale);
   };
-  */
+  
     
   ld.exp = function(x, rate) {
       return x < 0 ? -Infinity : log(rate) -rate * x;
