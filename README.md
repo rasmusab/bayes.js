@@ -203,6 +203,7 @@ Some interactive examples
 * [A Normal distribution](http://codepen.io/rasmusab/pen/LpaKep?editors=001)
 * [A Bernouli distribution with a Beta prior](http://codepen.io/rasmusab/pen/LGRVod?editors=001).
 * [A Bernouli model with a spike-n-slab prior](http://codepen.io/rasmusab/pen/VejLPX?editors=001)
+* [An analysis of capture-recapture data](http://codepen.io/rasmusab/pen/OMROVe?editors=001)
 * [An hierarchical model with varying slope and intercept](http://codepen.io/rasmusab/pen/VewLoM?editors=001) (This is streching the limits of what the simple `AmwgSampler` can do...)
 
 Available distributions in distributions.js

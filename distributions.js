@@ -99,18 +99,19 @@ var ld = (function() {
   ld.norm = function(x, mean, sd) {
       return -0.5 * log(2 * pi) -log(sd) - pow(x - mean, 2) / (2 * sd * sd);
   };
+
+  // A bivariate Normal distribution parameterized by arrays of two means and SDs, and 
+  // the correlation.
+  ld.bivarnorm = function(x, mean, sd, corr) {
+    var z = pow(x[0] - mean[0], 2) / pow(sd[0], 2) +
+            pow(x[1] - mean[1], 2) / pow(sd[1], 2) - 
+            (2 * corr * (x[0] - mean[0]) * (x[1] - mean[1])) / (sd[0] * sd[1]);
+    var normalizing_factor = -( log(2) + log(pi) + log(sd[0]) + log(sd[1]) + 
+                                0.5 * log(1 - pow(corr, 2)) ); 
+    var bivar_log_dens = normalizing_factor - z / (2 * (1 - pow(corr, 2) ) ); 
+    return bivar_log_dens;
+  };
   
-/*
-Bivariate normal distribution parameterized using the correlation.
-! Not on the log-scale yet... !
-var bivarnorm = function(x, mu, sigma, rho) {
-  var z = (x[0] - mu[0])^2 / sigma[0]^2 - (2 * rho * (x[0] - mu[0]) * (x[1] - mu[1])) / 
-          (sigma[0] * sigma[1]) + (x[1] - mu[1])^2 / sigma[1]^2;
-  var bivar_log_dens = 1/(2 * pi * sigma[0] * sigma[1] * sqrt(1 - rho^2)) * 
-                       exp(-z / (2 * (1 - rho^2 ))); 
-  return bivar_log_dens;
-};
-*/
 
   ld.laplace = function(x, location, scale) {
     return (-abs(x - location)/scale) - log(2 * scale);
