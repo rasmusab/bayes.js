@@ -119,7 +119,8 @@ var ld = (function() {
   
   ld.dexp = ld.laplace;
   
-  ld.gamma = function(x, shape, scale) {
+  ld.gamma = function(x, shape, rate) {
+    var scale = 1 / rate;
     if (x < 0) {
       return -Infinity;
     }
