@@ -204,6 +204,7 @@ Some interactive examples
 * [A Bernouli distribution with a Beta prior](http://codepen.io/rasmusab/pen/LGRVod?editors=001).
 * [A Bernouli model with a spike-n-slab prior](http://codepen.io/rasmusab/pen/VejLPX?editors=001)
 * [An analysis of capture-recapture data](http://codepen.io/rasmusab/pen/OMROVe?editors=001)
+* [Correlation analysis / bivariate Normal model](http://codepen.io/rasmusab/pen/eJdyPo?editors=001)
 * [the "Pump" example from the BUGS project](http://codepen.io/rasmusab/pen/jWMYxK?editors=001)
 * [An hierarchical model with varying slope and intercept](http://codepen.io/rasmusab/pen/VewLoM?editors=001) (This is streching the limits of what the simple `AmwgSampler` can do...)
 
