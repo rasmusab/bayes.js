@@ -40,7 +40,7 @@ var ld = (function() {
   ////////// Helper functions //////////
   //////////////////////////////////////
   
-  var gammaln = function(x) {
+  var lgamma = function(x) {
     var j = 0;
     var cof = [
       76.18009172947146, -86.50532032941677, 24.01409824083091,
@@ -54,29 +54,29 @@ var ld = (function() {
       ser += cof[j] / ++y;
     return log(2.5066282746310005 * ser / xx) - tmp;
   };
-  ld.gammaln = gammaln;
+  ld.lgamma = lgamma;
   
-  var factorialln = function(n) {
-    return n < 0 ? NaN : gammaln(n + 1);
+  var lfactorial = function(n) {
+    return n < 0 ? NaN : lgamma(n + 1);
   };
-  ld.factorialln = factorialln;
+  ld.lfactorial = lfactorial;
   
-  var combinationln = function(n, m){
-    return factorialln(n) - factorialln(m) - factorialln(n - m);
+  var lchoose = function(n, k){
+    return lfactorial(n) - lfactorial(k) - lfactorial(n - k);
   };
-  ld.combinationln = combinationln;
+  ld.lchoose = lchoose;
   
-  var betaln = function(x, y) {
-    return gammaln(x) + gammaln(y) - gammaln(x + y);
+  var lbeta = function(a, b) {
+    return lgamma(a) + lgamma(b) - lgamma(a + b);
   };
-  ld.combinationln = combinationln;
+  ld.lbeta = lbeta;
   
-  var log = Math.log;
-  var exp = Math.exp;
-  var abs = Math.abs;
-  var pow = Math.pow;
+  var log  = Math.log;
+  var exp  = Math.exp;
+  var abs  = Math.abs;
+  var pow  = Math.pow;
   var sqrt = Math.sqrt;
-  var pi = Math.PI;
+  var pi   = Math.PI;
   
   ////////// Continous distributions //////////
   /////////////////////////////////////////////
@@ -88,7 +88,7 @@ var ld = (function() {
     if(shape1 === 1 && shape2 === 1) {
       return 0;
     } else {
-      return (shape1 - 1) * log(x) + (shape2 - 1) * log(1 - x) - betaln(shape1, shape2);  
+      return (shape1 - 1) * log(x) + (shape2 - 1) * log(1 - x) - lbeta(shape1, shape2);  
     }
   };
   
@@ -127,7 +127,7 @@ var ld = (function() {
     if((x === 0 && shape === 1) ) {
       return -log(scale);
     } else {
-      return (shape - 1) * log(x) - x / scale - gammaln(shape) - shape * log(scale);
+      return (shape - 1) * log(x) - x / scale - lgamma(shape) - shape * log(scale);
     }
   };
   
@@ -135,7 +135,7 @@ var ld = (function() {
       if (x <= 0) {
         return -Infinity;
       }
-      return -(shape + 1) * log(x) - scale / x - gammaln(shape) + shape * log(scale);
+      return -(shape + 1) * log(x) - scale / x - lgamma(shape) + shape * log(scale);
     };
   
   ld.lnorm =  function(x, meanlog, sdlog) {
@@ -153,10 +153,10 @@ var ld = (function() {
     return log(shape) + shape * log(scale) - (shape + 1) * log(x);
   };
   
-  ld.t  =  function(x, mu, sigma, nu) {
-    nu = nu > 1e100 ? 1e100 : nu;
-    return gammaln((nu + 1)/2) - gammaln(nu/2) - log(sqrt(pi * nu) * sigma) +
-           log(pow(1 + (1/nu) * pow((x - mu)/sigma, 2), -(nu + 1)/2));
+  ld.t  =  function(x, location, scale, df) {
+    df = df > 1e100 ? 1e100 : df;
+    return lgamma((df + 1)/2) - lgamma(df/2) - log(sqrt(pi * df) * scale) +
+           log(pow(1 + (1/df) * pow((x - location)/scale, 2), -(df + 1)/2));
   };
   
   // This is a direct javascript translation of the R code used to evaluate
@@ -182,15 +182,15 @@ var ld = (function() {
 
   ld.dirichlet = function(x, alpha) {
     var sum_alpha = 0;
-    var sum_gammaln_alpha = 0;
+    var sum_lgamma_alpha = 0;
     var sum_alpha_sub_1_log_x = 0;
     var n = alpha.length;
     for(var i = 0; i < n; i++) {
       sum_alpha += alpha[i];
-      sum_gammaln_alpha += gammaln(alpha[i]);
+      sum_lgamma_alpha += lgamma(alpha[i]);
       sum_alpha_sub_1_log_x += (alpha[i] - 1) * log(x[i]);
     }
-    return gammaln(sum_alpha) - sum_gammaln_alpha + sum_alpha_sub_1_log_x;
+    return lgamma(sum_alpha) - sum_lgamma_alpha + sum_alpha_sub_1_log_x;
   };
    
     
@@ -224,45 +224,43 @@ var ld = (function() {
     if(prob === 0 || prob === 1) {
       return (size * prob) === x ? 0 : -Infinity;
     }
-    return combinationln(size, x) + x * log(prob) + (size - x) * log(1 - prob);
+    return lchoose(size, x) + x * log(prob) + (size - x) * log(1 - prob);
   };
   
-  var multinom = function(x, prob) {
+  var multinom = function(x, probs) {
     var n = x.length;
     var size = 0;
     var tmp_term = 0;
     for(var i = 0; i < n; i++) {
-      if(prob[i] === 0) {
+      if(probs[i] === 0) {
         if(x[i] !== 0) {
           return -Infinity;  
         }
       } else {
         size += x[i];
-        tmp_term += x[i] * log(prob[i]) - gammaln(x[i] + 1);
+        tmp_term += x[i] * log(probs[i]) - lgamma(x[i] + 1);
       }
     }
-    return gammaln(size + 1) + tmp_term ;
+    return lgamma(size + 1) + tmp_term ;
   };
-  
-  
   
   ld.nbinom = function(x, size, prob) {
     if(x < 0) {
       return -Infinity;
     }
-    return combinationln(x + size - 1, size - 1) + x * log(1 - prob) + size * log(prob);
+    return lchoose(x + size - 1, size - 1) + x * log(1 - prob) + size * log(prob);
   };
   
   ld.hyper = function(x, m, n, k) {
     if(x < 0 || x > k) {
       return -Infinity;
     } else {
-    return combinationln(m, x) + combinationln(n, k-x) - combinationln(m+n, k);
+    return lchoose(m, x) + lchoose(n, k-x) - lchoose(m+n, k);
     }
   };
   
   ld.pois = function(x, lambda) {
-      return x < 0 ? -Infinity : log(lambda) * x - lambda - factorialln(x);
+      return x < 0 ? -Infinity : log(lambda) * x - lambda - lfactorial(x);
   };
   
   return ld;
