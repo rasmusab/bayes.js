@@ -213,9 +213,19 @@ Some interactive examples
 Available distributions in distributions.js
 --------------------------------------------
 
-For the time being, just check the source of **distributions.js**.
+The file distributions.js implements log densities for most of the common probability distributions. The log density functions use the naming scheme of R when possible but are not vectorized in any way. Some o the implemented distributions are:
 
-Some notes about the structure of mcmcm.js
+* Bernouli distribution: `ld.bern(x, prob)`
+* Binomial distribution: `ld.binom(x, size, prob)`
+* Poisson distribution: `ld.pois(x, lambda)`
+* Normal distribution: `ld.norm(x, mean, sd)`
+* Laplace distribution: `ld.laplace(x, location, scale)`
+* Gamma distribution: `ld.gamma(x, shape, rate)`
+* Bivariate normal distribution parameterized by correlation: `bivarnorm(x, mean, sd, corr)`
+
+For the full list of distributions just check the source of **distributions.js**.
+
+Some notes about the internal structure of mcmc.js
 ----------------------------------------
 
 For the time being, just check the source of **mcmcm.js**.
