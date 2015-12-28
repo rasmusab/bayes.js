@@ -455,6 +455,7 @@ var mcmc = (function(){
     this.prop_log_scale     = get_option("prop_log_scale", options, 0);
     this.batch_size         = get_option("batch_size", options, 50);
     this.max_adaptation     = get_option("max_adaptation", options, 1.0);
+    this.initial_adaptation = get_option("initial_adaptation", options, 1.0);
     this.target_accept_rate = get_option("target_accept_rate", options, 0.44);
     this.is_adapting        = get_option("is_adapting", options, true);
     
@@ -491,7 +492,9 @@ var mcmc = (function(){
         this.iterations_since_adaption ++;
         if(this.iterations_since_adaption >= this.batch_size) { // then adapt
           this.batch_count ++;
-          var log_sd_adjustment = Math.min(this.max_adaptation, 1 / Math.sqrt(this.batch_count));
+          var log_sd_adjustment = 
+            Math.min(this.max_adaptation, 
+                     this.initial_adaptation / Math.sqrt(this.batch_count));
           if(this.acceptance_count / this.batch_size > this.target_accept_rate) {
             this.prop_log_scale += log_sd_adjustment;
           } else {
@@ -596,19 +599,20 @@ var mcmc = (function(){
     this.prop_log_scale     = get_multidim_option("prop_log_scale", options, this.dim, 0);
     this.batch_size         = get_multidim_option("batch_size", options, this.dim, 50);
     this.max_adaptation     = get_multidim_option("max_adaptation", options, this.dim, 1.0);
+    this.initial_adaptation = get_multidim_option("initial_adaptation", options, this.dim, 1.0);
     this.target_accept_rate = get_multidim_option("target_accept_rate", options, this.dim, 0.44);
     this.is_adapting        = get_multidim_option("is_adapting", options, this.dim, true);
     
     // This hack below is a recursive function that creates an array of 
     // one dimensional steppers according to dim.
     var create_substeppers = 
-      function(dim, substate, log_post, prop_log_scale, batch_size, max_adaptation, target_accept_rate, is_adapting) {
+      function(dim, substate, log_post, prop_log_scale, batch_size, max_adaptation, initial_adaptation, target_accept_rate, is_adapting) {
       var substeppers = [];
       if(dim.length === 1) {
         for(var i = 0; i < dim[0]; i++) {
           var suboptions = {prop_log_scale: prop_log_scale[i], batch_size: batch_size[i],
-            max_adaptation: max_adaptation[i], target_accept_rate: target_accept_rate[i],
-            is_adapting: is_adapting[i]};
+            max_adaptation: max_adaptation[i], initial_adaptation: initial_adaptation[i],
+            target_accept_rate: target_accept_rate[i], is_adapting: is_adapting[i]};
             var subparam = {};
             subparam[i] = deep_clone(param);
             subparam[i].dim = [1]; // As this should now be a one-dim parameter
@@ -618,15 +622,15 @@ var mcmc = (function(){
       } else {
         for(var i = 0; i < dim[0]; i++) {
           substeppers[i] = create_substeppers(dim.slice(1), substate[i], log_post, prop_log_scale[i], 
-            batch_size[i], max_adaptation[i], target_accept_rate[i], is_adapting[i]);
+            batch_size[i], max_adaptation[i], initial_adaptation[i], target_accept_rate[i], is_adapting[i]);
         }
       }
       return substeppers;
     };
     
     this.substeppers = create_substeppers(this.dim, this.state[this.param_name], this.log_post,
-      this.prop_log_scale, this.batch_size, this.max_adaptation, this.target_accept_rate, 
-      this.is_adapting);
+      this.prop_log_scale, this.batch_size, this.max_adaptation, this.initial_adaptation,
+      this.target_accept_rate, this.is_adapting);
     
   };
   
@@ -824,7 +828,8 @@ var mcmc = (function(){
       var param_options = options.params && options.params[this.param_names[i]] || {};
       param_options.prop_log_scale     = param_options.prop_log_scale     || options.prop_log_scale; 
       param_options.batch_size         = param_options.batch_size         || options.batch_size; 
-      param_options.max_adaptation     = param_options.max_adaptation     || options.max_adaptation; 
+      param_options.max_adaptation     = param_options.max_adaptation     || options.max_adaptation;
+      param_options.initial_adaptation = param_options.initial_adaptation || options.initial_adaptation;
       param_options.target_accept_rate = param_options.target_accept_rate || options.target_accept_rate; 
       param_options.is_adapting        = param_options.is_adapting        || options.is_adapting; 
       this.substeppers[i] = new SelectStepper(param_object_wrap, state, log_post, param_options);
