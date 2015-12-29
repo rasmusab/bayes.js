@@ -1,6 +1,6 @@
-# bayes.js
+# bayes.js - MCMC and Bayes in the browser
 
-A small toy javascript MCMC framework that can be used fit Bayesian models in the browser. I call it "toy" because I would use it for fun, but not in production...
+bayes.js A small toy javascript MCMC framework that can be used fit Bayesian models in the browser. I call it "toy" because I would use it for fun, but not in production...
 
 The two major files are:
 
@@ -16,7 +16,8 @@ Given that **mcmc.js** and **distributions.js** have been imported, here is how 
 
 
 ```JavaScript
-var data = [3, 14, 11, 20, 10, 1, 14, 15, 5, 13];
+// The heights of the last ten American presidents in cm, from Kennedy to Obama 
+var data = [183, 192, 182, 183, 177, 185, 188, 188, 182, 185];
 
 var params = {
   mu: {type: "real"},
@@ -50,9 +51,10 @@ And here is a plot of the resulting sample made in javascript using the [plotly.
 How to implement a custom Bayesian model
 -----------------------------------------
 
-In __mcmc.js__ the currently sole sampler is `AmwgSampler`. A general purpose MCMC sample that can be used to fit a wide range of models *in theory*. In practice `AmwgSampler` can work well as long as there are not too many parameters. Here it's hard to specify what is "too many" but generally <10 parameters should be fine but >100 might be too many, but it depends. As AmwgSampler is a Gibbs sampler it also becomes crippled when the parameters are correlated.
+In __mcmc.js__ the currently sole sampler is `AmwgSampler`: An adaptive, general purpose MCMC sample that can be used to fit a wide range of models *in theory*. In practice `AmwgSampler` can work well as long as there are not too many parameters. Here it's hard to specify what is "too many" but generally <10 parameters should be fine but >100 might be too many, but it depends. As AmwgSampler is a Gibbs sampler it also becomes crippled when the parameters are correlated. 
 
 Here is how to create an instance of `AmwgSampler` and to produce a number of samples from a model defined by `params` and `log_post`:
+
 ```JavaScript
 var sampler = new mcmc.AmwgSampler(params, log_post, data);
 var samples = sampler.sample(1000)
@@ -187,7 +189,7 @@ It is also possible to control how the sampler adapts its proposal, where the tw
 * `batch_size` - The number of steps between each update of the `prop_log_scale`. Defaults to 50.
 * `max_adaptation` - The maximum amount `prop_log_scale` is changed each batch update. Defaults to 0.33.
 
-If you want to know more about what these settings do I urge you to read the rather accessible paper by Roberts and Rosenthal (2009) ](http://probability.ca/jeff/ftpdir/adaptex.pdf). These options can also be given to specific parameters by supplying a `params` value overriding options for one or more parameters. For example, `var options = {max_adaptation: 0.5, params: { mu: {max_adaptation: 0.1} } }` would use `max_adaptation: 0.5` for all parameters except for `mu` which would get `max_adaptation: 0.1`.
+If you want to know more about what these settings do I urge you to read the rather accessible paper by [Roberts and Rosenthal (2009) ](http://probability.ca/jeff/ftpdir/adaptex.pdf). These options can also be given to specific parameters by supplying a `params` value overriding options for one or more parameters. For example, `var options = {max_adaptation: 0.5, params: { mu: {max_adaptation: 0.1} } }` would use `max_adaptation: 0.5` for all parameters except for `mu` which would get `max_adaptation: 0.1`.
 
 
 ### All together now
