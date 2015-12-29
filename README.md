@@ -42,18 +42,15 @@ var samples = sampler.sample(5000)
 ```
 *You can find an interactive version of this script [here](http://codepen.io/rasmusab/pen/LpaKep?editors=001)*
 
-And here is a plot of the resulting sample made in Javascript using the [plotly.js](https://plot.ly/javascript/) library:
+And here is a plot of the resulting sample made in javascript using the [plotly.js](https://plot.ly/javascript/) library:
 
 ![Normal model posterior](media/normal_model_plotly.png?raw=true)
-
-
-
 
 
 How to implement a custom Bayesian model
 -----------------------------------------
 
-In __mcmc.js__ the currently sole sampler is `AmwgSampler`. A general purpose MCMC sample that can be used to fit a wide range of models *in theory*. In practice `AmwgSampler` can work well as long as there are not too many parameters. Here it's hard to specify what is "too many" but generally <10 parameters should be fine but >100 might be too many, but it depends. As AmwgSampler is a Gibbs sampler it also becomes cripled when the parameters are correlated.
+In __mcmc.js__ the currently sole sampler is `AmwgSampler`. A general purpose MCMC sample that can be used to fit a wide range of models *in theory*. In practice `AmwgSampler` can work well as long as there are not too many parameters. Here it's hard to specify what is "too many" but generally <10 parameters should be fine but >100 might be too many, but it depends. As AmwgSampler is a Gibbs sampler it also becomes crippled when the parameters are correlated.
 
 Here is how to create an instance of `AmwgSampler` and to produce a number of samples from a model defined by `params` and `log_post`:
 ```JavaScript
@@ -97,7 +94,7 @@ Not all parameter properties need to be filled in and when left out will be repl
 params = {mu: {}, sigma: {lower:0}}
 ```
 
-If no `type` is given it defults to `"real"` and Otherwise the default parameter properties depend on the `type`. The following... 
+If no `type` is given it defaults to `"real"` and Otherwise the default parameter properties depend on the `type`. The following... 
 
 ```JavaScript
 params = {
@@ -122,7 +119,7 @@ params = {
 
 This is a function that defines your model. It should take two arguments, the `state` of the parameters and the `data` (but you can leave out the data if your model doesn't use any). The function should return a number proportional to the log posterior density of that `state`-`parameter` combination. The `data` will have whatever format you pass in when you instantiate the sampler, but the format of the `state` will depend on the parameter definition.
 
-The `state` is an object which has one element for each parameter with the parameter names as keys and the paramer states as values. The states of one-dimensional (`dim: [1]`) parameters will be numbers while the states of multi-dimensional parameters will be arrays of numbers. 
+The `state` is an object which has one element for each parameter with the parameter names as keys and the parameter states as values. The states of one-dimensional (`dim: [1]`) parameters will be numbers while the states of multi-dimensional parameters will be arrays of numbers. 
 
 For example, the following parameter definition...
 
@@ -142,9 +139,9 @@ state = {
   bin_mat:   [[1, 1, 0], [0, 0, 1], [1, 1, 1]];
 ```
 
-In order to calculate the log posterior it's usefull to have access to functions that return the log density of a bunch of probability distributions. This can be found in the **distributions.js** file which when imported created global object `ld` that contains a number of log density functions, for example `ld.norm`, `ld.beta`, and `ld.pois`.
+In order to calculate the log posterior it's useful to have access to functions that return the log density of a bunch of probability distributions. This can be found in the **distributions.js** file which when imported created global object `ld` that contains a number of log density functions, for example `ld.norm`, `ld.beta`, and `ld.pois`.
 
-The design pattern for crafting a log posterior function goes something like this (here exemplified by a standard beta bernouli model) :
+The design pattern for crafting a log posterior function goes something like this (here exemplified by a standard beta Bernoulli model) :
 
 ```JavaScript
 var log_post = function(state, data) {
@@ -183,9 +180,19 @@ There are a bunch of options that can be given to `AmwgSampler` as an options ob
 * `thin` - an integer specifying number of steps between each saved sample. Defaults to 1.0.
 * `monitor` - an array of strings specifying what parameters to monitor and return sampled from. Defaults to `null` which means that all parameters will be monitored.
 
+It is also possible to control how the sampler adapts its proposal, where the two most important options are:
+
+* `prop_log_scale` -  The initial log(SD) of the one-dimensional proposal (using the same init for each parameter). Defaults to 0.0 which implies a SD of exp(0) == 1.0.
+* `target_accept_rate` - The acceptance rate of the proposals the sampler tries to achieve. Defaults to 0.44.
+* `batch_size` - The number of steps between each update of the `prop_log_scale`. Defaults to 50.
+* `max_adaptation` - The maximum amount `prop_log_scale` is changed each batch update. Defaults to 0.33.
+
+If you want to know more about what these settings do I urge you to read the rather accessible paper by Roberts and Rosenthal (2009) ](http://probability.ca/jeff/ftpdir/adaptex.pdf). These options can also be given to specific parameters by supplying a `params` value overriding options for one or more parameters. For example, `var options = {max_adaptation: 0.5, params: { mu: {max_adaptation: 0.1} } }` would use `max_adaptation: 0.5` for all parameters except for `mu` which would get `max_adaptation: 0.1`.
+
+
 ### All together now
 
-So, using the beta-bernouli `log_dens` function defined above we could define and fit this model like this:
+So, using the beta-Bernoulli `log_dens` function defined above we could define and fit this model like this:
 
 ```JavaScript
 var data = {x: [1, 0, 1, 1, 0, 1, 1, 1]}
@@ -200,6 +207,8 @@ var samples = sampler.sample(1000);
 Some interactive examples
 -----------------------------
 
+Here are some interactive examples implemented as Codepens that should run in the browser.
+
 * [A Normal distribution](http://codepen.io/rasmusab/pen/LpaKep?editors=001)
 * [A Bernouli distribution with a Beta prior](http://codepen.io/rasmusab/pen/LGRVod?editors=001).
 * [A Bernouli model with a spike-n-slab prior](http://codepen.io/rasmusab/pen/VejLPX?editors=001)
@@ -208,14 +217,16 @@ Some interactive examples
 * [Simple linear regression](http://codepen.io/rasmusab/pen/wMzyGE?editors=001)
 * [Multivariate logistic regression](http://codepen.io/rasmusab/pen/eJdVBm?editors=001)
 * [the "Pump" example from the BUGS project](http://codepen.io/rasmusab/pen/jWMYxK?editors=001)
-* [An hierarchical model with varying slope and intercept from Gelman and Hill ](http://codepen.io/rasmusab/pen/VewLoM?editors=001) (This is streching the limits of what the simple `AmwgSampler` can do...)
+* [An hierarchical model with varying slope and intercept from Gelman and Hill ](http://codepen.io/rasmusab/pen/VewLoM?editors=001) (This is stretching the limits of what the simple `AmwgSampler` can do...)
+
+These demos rely on the [plotly library](https://plot.ly/javascript/) and I haven't tested them extensively on different platforms/browsers. You should be able to change the data and model definition on the fly (but if you change some stuff, like adding multidimensional variables, the plotting might stop working).  
 
 Available distributions in distributions.js
 --------------------------------------------
 
 The file distributions.js implements log densities for most of the common probability distributions. The log density functions use the naming scheme of R when possible but are not vectorized in any way. Some o the implemented distributions are:
 
-* Bernouli distribution: `ld.bern(x, prob)`
+* Bernoulli distribution: `ld.bern(x, prob)`
 * Binomial distribution: `ld.binom(x, size, prob)`
 * Poisson distribution: `ld.pois(x, lambda)`
 * Normal distribution: `ld.norm(x, mean, sd)`
@@ -228,7 +239,7 @@ For the full list of distributions just check the source of **distributions.js**
 Some notes about the internal structure of mcmc.js
 ----------------------------------------
 
-For the time being, just check the source of **mcmcm.js**.
+The sampler as defined in **mcmc.js** is somewhat over-engineered as it includes a little "framework"" of classes for implementing new sampling algorithms. The two main type of classes are `Stepper`s and `Sampler`s. A `Stepper` is a class responsible for moving one or more parameters around in parameter space. A `Sampler` is a more "user facing" class that handles the setup of a collection of `Stepper`s that together takes a full step in the model's parameter space. Here `AmwgSampler` is so far the only implemented `Sampler`. For more details just check the source of **mcmcm.js** which is not completely absent of comments.
 
 References
 --------------------
