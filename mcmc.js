@@ -454,7 +454,7 @@ var mcmc = (function(){
     
     this.prop_log_scale     = get_option("prop_log_scale", options, 0);
     this.batch_size         = get_option("batch_size", options, 50);
-    this.max_adaptation     = get_option("max_adaptation", options, 1.0);
+    this.max_adaptation     = get_option("max_adaptation", options, 0.33);
     this.initial_adaptation = get_option("initial_adaptation", options, 1.0);
     this.target_accept_rate = get_option("target_accept_rate", options, 0.44);
     this.is_adapting        = get_option("is_adapting", options, true);
@@ -598,7 +598,7 @@ var mcmc = (function(){
   
     this.prop_log_scale     = get_multidim_option("prop_log_scale", options, this.dim, 0);
     this.batch_size         = get_multidim_option("batch_size", options, this.dim, 50);
-    this.max_adaptation     = get_multidim_option("max_adaptation", options, this.dim, 1.0);
+    this.max_adaptation     = get_multidim_option("max_adaptation", options, this.dim, 0.33);
     this.initial_adaptation = get_multidim_option("initial_adaptation", options, this.dim, 1.0);
     this.target_accept_rate = get_multidim_option("target_accept_rate", options, this.dim, 0.44);
     this.is_adapting        = get_multidim_option("is_adapting", options, this.dim, true);
