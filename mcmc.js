@@ -815,7 +815,6 @@
     Stepper.call(this, params, state, log_post);
     this.param_names = Object.keys(this.params);
     this.substeppers = [];
-    this.stepper_indices = [];
     for(var i = 0; i < this.param_names.length; i++) {
       var param = params[this.param_names[i]];
       var SelectStepper;
@@ -855,7 +854,6 @@
       param_options.target_accept_rate = param_options.target_accept_rate || options.target_accept_rate; 
       param_options.is_adapting        = param_options.is_adapting        || options.is_adapting; 
       this.substeppers[i] = new SelectStepper(param_object_wrap, state, log_post, param_options);
-      this.stepper_indices[i] = i;
     }
   };
   
@@ -863,9 +861,9 @@
   AmwgStepper.prototype.constructor = AmwgStepper;
   
   AmwgStepper.prototype.step = function() {
-    shuffle_array(this.stepper_indices);
-    for(var i = 0; i < this.stepper_indices.length; i++) {
-      this.substeppers[this.stepper_indices[i]].step();
+    shuffle_array(this.substeppers);
+    for(var i = 0; i < this.substeppers.length; i++) {
+      this.substeppers[i].step();
     }
     return this.state;
   };
@@ -962,6 +960,7 @@
    * but also modifies the state in place.
    */ 
   Sampler.prototype.step = function() {
+    shuffle_array(this.steppers);
     for(var i = 0; i < this.steppers.length; i++) {
       this.steppers[i].step();
     }
