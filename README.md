@@ -4,8 +4,8 @@ bayes.js A small toy javascript MCMC framework that can be used fit Bayesian mod
 
 The two major files are:
 
-* __mcmc.js__ Implements a MCMC framework which can be used to fit Bayesian model with both discrete and continuous parameters. Currently the only algorithm that is implemented is a version of the *adaptive Metropolis within Gibbs* (AMWG) algorithm presented by [Roberts and Rosenthal (2009) ](http://probability.ca/jeff/ftpdir/adaptex.pdf). Importing this file creates the global object `mcmc`.
-* __distributions.js__ A collection of log density functions that can be used to construct Bayesian models. Follows the naming scheme `ld.*` (for example, `ld.norm` and `ld.pois`) and uses the same parameters as the `d*` density functions in R. Importing this file creates the global object `ld`.
+* __mcmc.js__ Implements a MCMC framework which can be used to fit Bayesian model with both discrete and continuous parameters. Currently the only algorithm that is implemented is a version of the *adaptive Metropolis within Gibbs* (AMWG) algorithm presented by [Roberts and Rosenthal (2009) ](http://probability.ca/jeff/ftpdir/adaptex.pdf). Loading this file in the browser creates the global object `mcmc`.
+* __distributions.js__ A collection of log density functions that can be used to construct Bayesian models. Follows the naming scheme `ld.*` (for example, `ld.norm` and `ld.pois`) and uses the same parameters as the `d*` density functions in R.  Loading this file in the browser creates the global object `ld`.
 
 In addition to this the whole thing is wrapped within an [Rstudio](https://www.rstudio.com/) project as I've use R and JAGS to write some tests.
 
@@ -238,10 +238,12 @@ The file distributions.js implements log densities for most of the common probab
 
 For the full list of distributions just check the source of **distributions.js**.
 
-Some notes about the internal structure of mcmc.js
+Some notes about the implementation of bayes.js
 ----------------------------------------
 
 The sampler as defined in **mcmc.js** is somewhat over-engineered as it includes a little "framework"" of classes for implementing new sampling algorithms. The two main type of classes are `Stepper`s and `Sampler`s. A `Stepper` is a class responsible for moving one or more parameters around in parameter space. A `Sampler` is a more "user facing" class that handles the setup of a collection of `Stepper`s that together takes a full step in the model's parameter space. Here `AmwgSampler` is so far the only implemented `Sampler`. For more details just check the source of **mcmcm.js** which is not completely absent of comments.
+
+bayes.js is wrapped inside an [Rstudio](https://www.rstudio.com/) and that is because I've used R to compare and test the performance of **mcmc.js** and **distributions.js**. I've also implemented a number of unit tests, however many of those tests checks that the samples of bayes.js have the right distribution but because the samples are random draws these tests actually fail from time to time. Having tests that fail even if noting is wrong is not ideal, but it's better than no tests at all... 
 
 References
 --------------------

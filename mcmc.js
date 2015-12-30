@@ -1,6 +1,28 @@
 "use strict";
 
-var mcmc = (function(){
+// This boiler plate code here is taken from:
+// https://github.com/umdjs/umd/blob/master/templates/returnExports.js
+// It should make shure that module can be imported both in the browser,
+// Node, and by using the Asynchronous Module Definition standard.
+// If this module is loaded in the browser it will created the global
+// object mcmc .
+(function (root, factory) {
+    if (typeof define === 'function' && define.amd) {
+        // AMD. Register as an anonymous module.
+        define([], factory);
+    } else if (typeof module === 'object' && module.exports) {
+        // Node. Does not work with strict CommonJS, but
+        // only CommonJS-like environments that support module.exports,
+        // like Node.
+        module.exports = factory();
+    } else {
+        // Browser globals (root is window)
+        root.mcmc = factory();
+  }
+}(this, function(){
+
+/// The actual module code starts here ///
+//////////////////////////////////////////  
   
   ////////// Helper Functions //////////
   //////////////////////////////////////
@@ -1071,4 +1093,4 @@ var mcmc = (function(){
     AmwgStepper: AmwgStepper, 
     AmwgSampler: AmwgSampler
   };
-}());
+}));
