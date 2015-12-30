@@ -1,6 +1,6 @@
 # bayes.js - MCMC and Bayes in the browser
 
-bayes.js is small toy javascript MCMC framework that can be used fit Bayesian models in the browser. I call it "toy" because I would use it for fun, but not in production...
+bayes.js is small toy JavaScript MCMC framework that can be used fit Bayesian models in the browser. I call it "toy" because I would use it for fun, but not in production...
 
 The two major files are:
 
@@ -43,7 +43,7 @@ var samples = sampler.sample(5000)
 ```
 *You can find an interactive version of this script [here](http://codepen.io/rasmusab/pen/LpaKep?editors=001)*
 
-And here is a plot of the resulting sample made in javascript using the [plotly.js](https://plot.ly/javascript/) library:
+And here is a plot of the resulting sample made in JavaScript using the [plotly.js](https://plot.ly/javascript/) library:
 
 [![Normal model posterior](media/normal_model_plotly.png?raw=true)](http://codepen.io/rasmusab/pen/LpaKep?editors=001)
 
@@ -84,7 +84,7 @@ params = {
 
 There are five parameter properties:
 
-* `type` - a string that defines the type of parameter. Can be `"real"`, `"int"` or `"binary"`. Note that this has nothing to do with javascript types, it's just to inform the sampler how to handle the parameter.
+* `type` - a string that defines the type of parameter. Can be `"real"`, `"int"` or `"binary"`. Note that this has nothing to do with JavaScript types, it's just to inform the sampler how to handle the parameter.
 * `dim` - an array giving the dimensions of the parameter. For example `dim: [1]` would define a scalar (a single number), `dim: [3]` a vector of length 3, and `dim: [2,2]` a 2 by 2 matrix.
 * `lower` - A number giving the lower support of the parameter.
 * `upper` - A number giving the upper support of the parameter.
@@ -241,8 +241,8 @@ For the full list of distributions just check the source of **distributions.js**
 FAQ
 ------------------
 
-* When is a javascript MCMC sampler useful?
-    - Well, for starters, it's *not* particularly useful if you want to do serious Bayesian data analysis. Then you should use a serious tool like [JAGS](http://mcmc-jags.sourceforge.net/) or [STAN](http://mc-stan.org/). It could, however, be useful if you would want to put a demo of a Bayesian model online, but don't want to / can't run the computations on a server. It could also be useful as a part of a javascript application making use of Bayesian computation at some point.
+* When is a JavaScript MCMC sampler useful?
+    - Well, for starters, it's *not* particularly useful if you want to do serious Bayesian data analysis. Then you should use a serious tool like [JAGS](http://mcmc-jags.sourceforge.net/) or [STAN](http://mc-stan.org/). It could, however, be useful if you would want to put a demo of a Bayesian model online, but don't want to / can't run the computations on a server. It could also be useful as a part of a JavaScript application making use of Bayesian computation at some point.
 * How good is the sampler that bayes.js uses? 
     - bayes.js implements the *adaptive Metropolis within Gibbs* described by [Roberts and Rosenthal (2009) ](http://probability.ca/jeff/ftpdir/adaptex.pdf) which is a good algorithm in that (1) it's adaptive and works out-of-the-box without you having to set a lot of tuning parameters, (2) it can handle both continuous and discrete parameters, (3) it is easy to implement. The downside with the sampler is that (1) it only works well with a small number of parameters, (2) it's a Gibbs sampler so it's going to struggle with correlated parameters.
 * What is "a small number of parameters"?
@@ -250,7 +250,7 @@ FAQ
 * How fast is it?
     - Also super context dependent. On simple models it's pretty fast, for example, fitting a standard Normal model on 1000 datapoints producing a sample of 20,000 draws takes ~0.5 s. on my computer. Also, when I've been playing around with different browsers I've seen order-of-magnitude changes in performance when changing seemingly arbitrary things. For example, inlining the definition of the Normal density in the function calculating the log posterior rather than using `ld.norm` defined in **distributions.js** resulted in 10x slower sampling on Firefox 37.
 * Are there any alternatives if I want to do Bayes in the browser?
-    - There's a probibalistic programming language called [webppl](http://webppl.org/) that's implemented in javascript and that looks great, but I don't have any experience using it.
+    - There's a probibalistic programming language called [webppl](http://webppl.org/) that's implemented in JavaScript and that looks great, but I don't have any experience using it.
 
 Some notes about the implementation of bayes.js
 ----------------------------------------
