@@ -218,6 +218,7 @@ Here are some interactive examples implemented as Codepens that should run in th
 * [Correlation analysis / bivariate Normal model](http://codepen.io/rasmusab/pen/eJdyPo?editors=001)
 * [Simple linear regression](http://codepen.io/rasmusab/pen/wMzyGE?editors=001)
 * [Multivariate logistic regression](http://codepen.io/rasmusab/pen/eJdVBm?editors=001)
+* [A Poisson rate change point analysis](http://codepen.io/rasmusab/pen/zrogXb?editors=001)
 * [the "Pump" example from the BUGS project](http://codepen.io/rasmusab/pen/jWMYxK?editors=001)
 * [An hierarchical model with varying slope and intercept from Gelman and Hill (2006) ](http://codepen.io/rasmusab/pen/VewLoM?editors=001) (This is stretching the limits of what the simple `AmwgSampler` can do...)
 
