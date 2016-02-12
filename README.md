@@ -16,8 +16,8 @@ Given that **mcmc.js** and **distributions.js** have been imported, here is how 
 
 
 ```JavaScript
-// The heights of the last ten American presidents in cm, from Kennedy to Obama 
-var data = [183, 192, 182, 183, 177, 185, 188, 188, 182, 185];
+// The heights of the last nine American presidents in cm, from Kennedy to Obama 
+var data = [183, 192, 182, 177, 185, 188, 188, 182, 185];
 
 var params = {
   mu: {type: "real"},
