@@ -53,6 +53,7 @@
     return (v / u) * sd + mean;
   };
   
+  
   /** Returns a deep clone of src, sort of... It only copies a limited
    * number of types and, for example, function are not copied. 
    * From http://davidwalsh.name/javascript-clone
@@ -101,6 +102,28 @@
   		r = src.constructor ? new src.constructor() : {};
   	}
   	return mixin(r, src, deep_clone);
+  };
+  
+  /** Specialized clone function that only clones scalars and nested arrays where
+   * each array either consists of all arrays or all numbers. This function
+   * is meant as a fast way of cloning parameter draws within the mcmc sampling
+   * loop.
+   */
+  var clone_param_draw = function(x) {
+    if(Array.isArray(x)) {
+      if(Array.isArray(x[0])) {
+        // x is an array of arrays so we need to clone it recursively
+        var x_copy = [];
+        for(var i = 0, length = x.length; i < length; i++) {
+          x_copy.push(clone_param_draw(x[i]));
+        } 
+        return x_copy;
+      } else { // We'll assume x is a arrays of scalars
+        return x.slice(0);
+      }
+    } else { // We'll assume x is a scalar
+      return x;
+    }
   };
   
   /** Returns true if object is a number.
@@ -998,7 +1021,7 @@
         if(i % this.thinning_interval === 0) {
           for(j = 0; j < monitored_params.length; j++) {
             var param = monitored_params[j];
-            curr_sample[param].push(this.state[param]);
+            curr_sample[param].push( clone_param_draw(this.state[param]) );
           }
         }
         this.step();

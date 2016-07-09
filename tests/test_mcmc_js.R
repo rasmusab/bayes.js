@@ -47,9 +47,9 @@ test_that("parameter completion works", {
 
 test_that("the js version of rnorm works (this might fail occationally as it is random)", {
   norm_sample <- j$get("replicate(4500, function()  {return mcmc.rnorm(10, 5)} )")
-  expect_more_than(shapiro.test(norm_sample)$p.val, 0.01)
-  expect_more_than(t.test(norm_sample, mu = 10)$p.val, 0.01)
-  expect_more_than(var.test(norm_sample, rnorm(9999, 10, 5))$p.val, 0.01)
+  expect_gt(shapiro.test(norm_sample)$p.val, 0.01)
+  expect_gt(t.test(norm_sample, mu = 10)$p.val, 0.01)
+  expect_gt(var.test(norm_sample, rnorm(9999, 10, 5))$p.val, 0.01)
 })
 
 test_that("RealMetropolisStepper works", {
@@ -59,9 +59,9 @@ test_that("RealMetropolisStepper works", {
   j$eval("var stepper = new mcmc.RealMetropolisStepper(parameters, state, posterior)")
   norm_samples = j$get("replicate(10000, function()  {return stepper.step()} )")
   norm_samples = norm_samples[sample(1:10000, 1000)]
-  expect_more_than(shapiro.test(norm_sample)$p.val, 0.01)
-  expect_more_than(t.test(norm_sample, mu = 10)$p.val, 0.01)
-  expect_more_than(var.test(norm_sample, rnorm(9999, 10, 5))$p.val, 0.01)
+  expect_gt(shapiro.test(norm_sample)$p.val, 0.01)
+  expect_gt(t.test(norm_sample, mu = 10)$p.val, 0.01)
+  expect_gt(var.test(norm_sample, rnorm(9999, 10, 5))$p.val, 0.01)
 })
 
 test_that("IntMetropolisStepper works", {
@@ -71,13 +71,13 @@ test_that("IntMetropolisStepper works", {
   j$eval("var stepper = new mcmc.IntMetropolisStepper(parameters, state, posterior)")
   poisson_samples = j$get("replicate(10000, function()  {return stepper.step()} )")
   poisson_samples = poisson_samples[sample(1:10000, 1000)]
-  expect_more_than(poisson.test(sum(poisson_samples), length(poisson_samples) * 10)$p.val, 0.01)
+  expect_gt(poisson.test(sum(poisson_samples), length(poisson_samples) * 10)$p.val, 0.01)
   
   # Cludging together a chi square test with H0 Poisson(10)
   p_expected <- c( dpois(x=c(0:20),lambda=10), 1 - ppois(q = 20,lambda = 10))
   poisson_samples[poisson_samples > 21] <- 21 
   cont_table <- table(factor(poisson_samples, levels = 0:21))
-  expect_more_than(chisq.test(x = cont_table, p = p_expected)$p.val, 0.01)
+  expect_gt(chisq.test(x = cont_table, p = p_expected)$p.val, 0.01)
 })
 
 test_that("MultiRealComponentMetropolisStepper works", {
@@ -93,9 +93,9 @@ test_that("MultiRealComponentMetropolisStepper works", {
   norm_samples = j$get("replicate(10000, function()  {return stepper.step()} )")
   norm_samples = j$get("replicate(10000, function()  {return stepper.step()} )")
   norm_samples = norm_samples[sample(1:10000, 1000), , ]
-  expect_more_than(shapiro.test(norm_samples[, 1,1])$p.val, 0.01)
-  expect_more_than(t.test(norm_samples[, 1,2], mu = 10)$p.val, 0.01)
-  expect_more_than(var.test(norm_samples[, 2,1], rnorm(9999, 0.1, 0.5))$p.val, 0.01)
+  expect_gt(shapiro.test(norm_samples[, 1,1])$p.val, 0.01)
+  expect_gt(t.test(norm_samples[, 1,2], mu = 10)$p.val, 0.01)
+  expect_gt(var.test(norm_samples[, 2,1], rnorm(9999, 0.1, 0.5))$p.val, 0.01)
 })
 
 test_that("MultiIntComponentMetropolisStepper works", {
@@ -111,13 +111,13 @@ test_that("MultiIntComponentMetropolisStepper works", {
   pois_samples = j$get("replicate(10000, function()  {return stepper.step()} )")
   pois_samples = j$get("replicate(10000, function()  {return stepper.step()} )")
   pois_samples = pois_samples[sample(1:10000, 1000), , ]
-  expect_more_than(poisson.test(sum(pois_samples[ ,1,1]), length(pois_samples[ , 1,1]) * 0.1)$p.val, 0.01)
+  expect_gt(poisson.test(sum(pois_samples[ ,1,1]), length(pois_samples[ , 1,1]) * 0.1)$p.val, 0.01)
   
   # Cludging together a chi square test with H0 Poisson(10)
   p_expected <- c( dpois(x=c(0:20),lambda=10), 1 - ppois(q = 20,lambda = 10))
   poisson_samples[pois_samples[ ,1,2] > 21] <- 21 
   cont_table <- table(factor(poisson_samples, levels = 0:21))
-  expect_more_than(chisq.test(x = cont_table, p = p_expected)$p.val, 0.01)
+  expect_gt(chisq.test(x = cont_table, p = p_expected)$p.val, 0.01)
 })
 
 test_that("BinaryStepper works", {
@@ -126,7 +126,7 @@ test_that("BinaryStepper works", {
   j$eval("var parameters = {x: {type: 'binary'}};")
   j$eval("var stepper = new mcmc.BinaryStepper(parameters, state, posterior)")
   bern_samples = j$get("replicate(1000, function()  {return stepper.step()} )")
-  expect_more_than(binom.test(sum(bern_samples), length(bern_samples), p = 0.85)$p.val, 0.01)
+  expect_gt(binom.test(sum(bern_samples), length(bern_samples), p = 0.85)$p.val, 0.01)
 })
 
 test_that("BinaryComponentStepper works", {
@@ -137,8 +137,8 @@ test_that("BinaryComponentStepper works", {
   bern_samples = j$get("replicate(1000, function()  {return stepper.step()} )")
   expected_freq_x1 <- (0.85 + 0.15) / (0.85 + 0.15 + 0.15 + 0.15)
   expected_freq_x4 <- (0.75 + 0.25) / (0.75 + 0.25 + 0.25 + 0.25)
-  expect_more_than(binom.test(sum(bern_samples[ , 1, 1]), length(bern_samples[ , 1, 1]), p = expected_freq_x1)$p.val, 0.01)
-  expect_more_than(binom.test(sum(bern_samples[ , 2, 2]), length(bern_samples[ , 2, 2]), p = expected_freq_x2)$p.val, 0.01)
+  expect_gt(binom.test(sum(bern_samples[ , 1, 1]), length(bern_samples[ , 1, 1]), p = expected_freq_x1)$p.val, 0.01)
+  expect_gt(binom.test(sum(bern_samples[ , 2, 2]), length(bern_samples[ , 2, 2]), p = expected_freq_x2)$p.val, 0.01)
 })
 
 ### Fitting a couple of jags models so that I can compare their output
@@ -171,6 +171,21 @@ jags_complex_model <- jags.model(textConnection(jags_complex_model_string), n.ch
 jags_complex_samples <- coda.samples(jags_complex_model, variable.names = c("m", "p1", "n1"), n.iter = 20000, thin = 10, progress.bar = "none")
 jags_complex_samples <- as.matrix(jags_complex_samples)
 
+jags_hierarchical_binomial_model_string <- "model {
+  mu_logit_p ~ dnorm(0, 1/ (10*10))
+  sigma_logit_p ~ dnorm(0, 1/ (10*10)) T(0,)
+  for(i in 1:length(x)) {
+    logit_p[i] ~ dnorm(mu_logit_p, 1 / (sigma_logit_p*sigma_logit_p))
+    p[i] <- ilogit(logit_p[i])
+    x[i] ~ dbinom(p[i], n[i])
+  }
+}"
+jags_hierarchical_binomial_model <- jags.model(textConnection(jags_hierarchical_binomial_model_string), n.chains = 1, quiet = TRUE,
+                           data = list(x = c(5, 6, 9, 14, 13, 20), n = c(10, 10, 20, 20, 30, 30)))
+jags_hierarchical_binomial_samples <- coda.samples(jags_hierarchical_binomial_model, variable.names = c("p", "mu_logit_p", "sigma_logit_p"), 
+                                                   n.iter = 50000, thin = 50, progress.bar = "none")
+jags_hierarchical_binomial_samples <- as.matrix(jags_hierarchical_binomial_samples)
+
 test_that("AmwgtStepper works on Normal model", {
   j$eval("var pars = mcmc.complete_params(params1, mcmc.param_init_fixed)" )
   j$eval("var state = {mu: pars.mu.init, sigma: pars.sigma.init}")
@@ -182,9 +197,9 @@ test_that("AmwgtStepper works on Normal model", {
   norm_post_samples = j$get("replicate(10000, function() {stepper.step(); return [state.mu, state.sigma];})")
   norm_post_samples = norm_post_samples[sample(1:nrow(norm_post_samples), 1000),]
   
-  expect_more_than(cont_chisq_test(norm_post_samples[,1], jags_norm_samples[,1], no_splits = 10)$p.val, 0.01)
-  expect_more_than(cont_chisq_test(norm_post_samples[,2], jags_norm_samples[,2], no_splits = 10)$p.val, 0.01)
-  expect_more_than(cont_chisq_test(norm_post_samples, jags_norm_samples, no_splits = 5)$p.val, 0.01)
+  expect_gt(cont_chisq_test(norm_post_samples[,1], jags_norm_samples[,1], no_splits = 10)$p.val, 0.01)
+  expect_gt(cont_chisq_test(norm_post_samples[,2], jags_norm_samples[,2], no_splits = 10)$p.val, 0.01)
+  expect_gt(cont_chisq_test(norm_post_samples, jags_norm_samples, no_splits = 5)$p.val, 0.01)
 })
 
 test_that("AmwgtStepper works on complex model", {
@@ -198,12 +213,12 @@ test_that("AmwgtStepper works on complex model", {
   post_samples = j$get("replicate(30000, function() {stepper.step(); return [state.m, state.n1, state.p1];})")
   post_samples <- post_samples[sample(1:nrow(post_samples), 1000),]
   
-  expect_more_than(
+  expect_gt(
     prop.test(c(sum(post_samples[,1]), sum(jags_complex_samples[,1])), 
               c(nrow(post_samples), nrow(jags_complex_samples)))$p.val, 0.01)
-  expect_more_than(cont_chisq_test(post_samples[,2], jags_complex_samples[,2], no_splits = 10)$p.val, 0.01)
-  expect_more_than(cont_chisq_test(post_samples[,3], jags_complex_samples[,3], no_splits = 10)$p.val, 0.01)
-  expect_more_than(cont_chisq_test(post_samples[,2:3], jags_complex_samples[,2:3], no_splits = 5)$p.val, 0.01)
+  expect_gt(cont_chisq_test(post_samples[,2], jags_complex_samples[,2], no_splits = 10)$p.val, 0.01)
+  expect_gt(cont_chisq_test(post_samples[,3], jags_complex_samples[,3], no_splits = 10)$p.val, 0.01)
+  expect_gt(cont_chisq_test(post_samples[,2:3], jags_complex_samples[,2:3], no_splits = 5)$p.val, 0.01)
 })
 
 test_that("AmwgSampler works on Normal model", {
@@ -215,9 +230,9 @@ test_that("AmwgSampler works on Normal model", {
   
   expect_true(length(norm_post_samples$sigma) == length(norm_post_samples$var))
   expect_true(isTRUE( all.equal(norm_post_samples$sigma^2, norm_post_samples$var) ))
-  expect_more_than(cont_chisq_test(norm_post_samples$mu, jags_norm_samples[,1], no_splits = 10)$p.val, 0.01)
-  expect_more_than(cont_chisq_test(norm_post_samples$sigma, jags_norm_samples[,2], no_splits = 10)$p.val, 0.01)
-  expect_more_than(cont_chisq_test(norm_post_samples[, 1:2], jags_norm_samples[,1:2], no_splits = 5)$p.val, 0.01)
+  expect_gt(cont_chisq_test(norm_post_samples$mu, jags_norm_samples[,1], no_splits = 10)$p.val, 0.01)
+  expect_gt(cont_chisq_test(norm_post_samples$sigma, jags_norm_samples[,2], no_splits = 10)$p.val, 0.01)
+  expect_gt(cont_chisq_test(norm_post_samples[, 1:2], jags_norm_samples[,1:2], no_splits = 5)$p.val, 0.01)
 })
 
 test_that("AmwgSampler works on complex model", {
@@ -230,10 +245,23 @@ test_that("AmwgSampler works on complex model", {
   expect_equal(nrow(post_samples), 3000);
   post_samples <- post_samples[sample(1:nrow(post_samples), 1000),]
   
-  expect_more_than(
+  expect_gt(
     prop.test(c(sum(post_samples$m), sum(jags_complex_samples[,1])), 
               c(nrow(post_samples), nrow(jags_complex_samples)))$p.val, 0.01)
-  expect_more_than(cont_chisq_test(post_samples$n1, jags_complex_samples[,2], no_splits = 10)$p.val, 0.01)
-  expect_more_than(cont_chisq_test(post_samples$p1, jags_complex_samples[,3], no_splits = 10)$p.val, 0.01)
-  expect_more_than(cont_chisq_test(post_samples[,c("n1", "p1")], jags_complex_samples[,2:3], no_splits = 5)$p.val, 0.01)
+  expect_gt(cont_chisq_test(post_samples$n1, jags_complex_samples[,2], no_splits = 10)$p.val, 0.01)
+  expect_gt(cont_chisq_test(post_samples$p1, jags_complex_samples[,3], no_splits = 10)$p.val, 0.01)
+  expect_gt(cont_chisq_test(post_samples[,c("n1", "p1")], jags_complex_samples[,2:3], no_splits = 5)$p.val, 0.01)
+})
+
+test_that("AmwgSampler works on hierarchical binomial model", {
+  j$eval('var binom_data = {"x": [5, 6, 9, 14, 13, 20], "n": [10, 10, 20, 20, 30, 30]};')
+  j$eval("var sampler =  new mcmc.AmwgSampler(params_hierarchical_binomial, hierarchical_binomial_post, binom_data);")
+  j$eval("sampler.burn(30000)")
+  j$eval("sampler.thin(100);")
+  post_samples = as.data.frame(j$get("sampler.sample(100000)"))
+  expect_equal(nrow(post_samples), 1000);
+  
+  expect_gt(cont_chisq_test(post_samples$p.1, jags_hierarchical_binomial_samples[,"p[1]"], no_splits = 10)$p.val, 0.01)
+  expect_gt(cont_chisq_test(post_samples$mu_logit_p, jags_hierarchical_binomial_samples[,"mu_logit_p"], no_splits = 10)$p.val, 0.01)
+  expect_gt(cont_chisq_test(post_samples[,c("mu_logit_p", "p.2")], jags_hierarchical_binomial_samples[,c("mu_logit_p", "p[2]")], no_splits = 5)$p.val, 0.01)
 })

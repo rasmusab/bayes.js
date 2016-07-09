@@ -169,3 +169,43 @@ var complex_model_post = function(par, x) {
   }
   return log_post;
 };
+
+
+var binom_data = {"x": [5, 6, 9, 14, 13, 20], "n": [10, 10, 20, 20, 30, 30]};
+
+var params_hierarchical_binomial = {
+  "p": {
+    "type": "real",
+    "init": 0.5,
+    "lower": 0,
+    "upper": 1,
+    "dim": [1,6] // The "1" is just there to complicate stuff.
+  },
+  "mu_logit_p": {
+    "type": "real",
+    "init": 0
+  },
+  "sigma_logit_p": {
+    "type": "real",
+    "lower": 0,
+    "init": 1
+  }
+};
+
+var logit = function(p) {
+  return Math.log(p / (1 -p));
+};
+
+var hierarchical_binomial_post = function(par, d) {
+  var p = par.p[0];
+  var mu_logit_p = par.mu_logit_p;
+  var sigma_logit_p = par.sigma_logit_p;
+  var log_post = 0;
+  log_post += ld.norm(mu_logit_p, 0, 10);
+  log_post += ld.norm(sigma_logit_p, 0, 10);
+  for(var i = 0; i < d.x.length; i++) {
+    log_post += ld.norm(logit(p[i]), mu_logit_p, sigma_logit_p);
+    log_post += ld.binom(d.x[i], d.n[i], p[i]); 
+  }
+  return log_post;
+};
